@@ -18,14 +18,28 @@
 #include <GL/glut.h>
 
 #include <iostream>
-#include<string>
-#include<cmath>
+#include <iomanip>
+#include <string>
+#include <cmath>
 #include <sstream>
 
 #define cimg_display 0
 #include "CImg.h"
 #include<vector>
+
+/*=======================================*//* CONSTANTS *//*=======================================*/
+#define WIDTH  1200
+#define HEIGHT 1000
+
+#define CELL_SIZE 40
+#define GRID_START_X 200
+#define GRID_START_Y 900
+
+#define MAX_FUEL 100
+#define STARTING_CASH 100.0
+
 using namespace std;
+
 
 #define FPS 80 // frame per seconds
 
@@ -35,6 +49,7 @@ using namespace std;
 //
 // ColorName you can refer any color by its name..
 // In other words you can use colorname as an index in color array (see below)
+#define COLOR_COUNT 140
 enum ColorNames {
 	MAROON,
 	DARK_RED,

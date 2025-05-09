@@ -1,6 +1,6 @@
 CXXFLAGS = -g3 -w -I/opt/homebrew/include
 
-OBJS = util.o game.o board.o
+OBJS = util.o game.o car.o passenger.o package.o fuelstation.o rolechangestation.o player.o
 
 LIBS = -framework OpenGL -framework GLUT -lGLEW -lfreeimage -L/opt/homebrew/lib
 
