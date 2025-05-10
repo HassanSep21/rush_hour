@@ -1,6 +1,7 @@
 #include "player.h"
 
-Player::Player(int role) : role(role ? role : rand() % 2), Car(200, 100, colors[role == PlayerRoles::TAXI ? ORANGE : BLUE]), cash(STARTING_CASH), score(0), jobsCompleted(0) {}
+Player::Player(int role) : role(role), Car(GRID_START_X, GRID_END_Y, colors[(role == PlayerRoles::TAXI) ? ORANGE : BLUE]), 
+                cash(STARTING_CASH), score(0), jobsCompleted(0) {}
 
 string Player::getName() const { return name; }
 void Player::setName(string name) { this->name = name; }

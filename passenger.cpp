@@ -1,6 +1,7 @@
 #include "passenger.h"
 
-Passenger::Passenger(int x, int y, int desX, int desY) : x(x), y(y), desX(desX), desY(desY), pickedUp(false), reachedDes(false), fair(20.0 + rand() % 50) {}
+Passenger::Passenger(int x, int y, int desX, int desY) : x(x), y(y), desX(desX), desY(desY), 
+                        pickedUp(false), reachedDes(false), fair(20.0 + rand() % 50) {}
 
 int Passenger::getX() const { return x; }
 int Passenger::getY() const { return y; }

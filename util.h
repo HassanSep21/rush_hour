@@ -28,15 +28,20 @@
 #include<vector>
 
 /*=======================================*//* CONSTANTS *//*=======================================*/
+
 #define WIDTH  1200
 #define HEIGHT 1000
 
 #define CELL_SIZE 40
 #define GRID_START_X 200
-#define GRID_START_Y 900
+#define GRID_START_Y 100
+#define GRID_END_X 200
+#define GRID_END_Y 860
 
-#define MAX_FUEL 100
-#define STARTING_CASH 100.0
+#define MAX_FUEL 200
+#define STARTING_CASH 100.0f
+
+/*=======================================*//* CONSTANTS *//*=======================================*/
 
 using namespace std;
 

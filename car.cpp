@@ -40,6 +40,22 @@ void Car::moveLeft()
 
 int Car::getX() const { return x; }
 int Car::getY() const { return y; }
+void Car::setX(int x) 
+{
+    if (fuel > 10)
+    {
+        this->x = x; 
+        fuel--;
+    }
+}
+void Car::setY(int y) 
+{
+    if (fuel > 10)
+    {
+        this->y = y; 
+        fuel--;
+    }
+}
 int Car::getFuel() const { return fuel; }
 float *Car::getColor() const { return color; }
 

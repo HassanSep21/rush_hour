@@ -20,7 +20,9 @@ public:
 	void moveLeft();
 
 	int getX() const;  	 
-	int getY() const;   	 
+	int getY() const; 
+	void setX(int x);
+	void setY(int y);  	 
 	int getFuel() const;	  	 
 	void setFuel(int fuel);   	 
 	float *getColor() const;      

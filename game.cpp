@@ -13,6 +13,13 @@
 #include <string>
 #include <cmath>
 
+// seed the random numbers generator by current time (see the documentation of srand for further help)...
+struct RandomSeeder
+{
+	RandomSeeder() { srand(time(0)); }
+};
+RandomSeeder randSeed;
+
 /*=======================================*//* MY HEADERS *//*=======================================*/
 
 #include "car.h"
@@ -20,71 +27,295 @@
 #include "package.h"
 #include "fuelstation.h"
 #include "rolechangestation.h"
+#include "obstacle.h"
 #include "player.h"
 
-/*=======================================*//* My Classes *//*=======================================*/
+using namespace std;
 
-struct ObstacleType
+/*=======================================*//* My Class *//*=======================================*/
+
+struct BoardObjects
 {
-	static const int TREE = 0;
-	static const int BOX = 1;
+	static const int ROAD = 0;
+	static const int BUILDING = 1;
+	static const int FUEL_STATION = 2;
+	static const int ROLE_CHANGE_STATION = 3;
+	static const int OBSTACLE = 4;
 };
 
-class Obstacle
+class Board
 {
 private:
-	int x;
-	int y;
-	int type;
+	static const int SIZE = 20;
+	int grid[SIZE][SIZE];
+
+	RoleChangeStation roleChangeStation;
+
+	FuelStation *fuelStations;
+	int fuelStationCount;
+
+	Obstacle *obstacles;
+	int obstacleCount;
+
+	Passenger *passengers;
+	int passengerCount;
+
+	Package *packages;
+	int packageCount;
 
 public:
-	Obstacle(int x = 40, int y = 40, int type = ObstacleType::TREE) : x(x), y(y), type(type) {}
-
-	int getX() const { return x; }
-	int getY() const { return y; }
-	int getType() const { return type; }
-	void setType(int type) { this->type = type; }
-
-	void draw()
+	Board(int fuelStationCount = 2, int obstacleCount = 4, int passengerCount = 2, int packageCount = 2) : 
+			fuelStationCount(fuelStationCount), obstacleCount(obstacleCount), roleChangeStation(GRID_START_X, GRID_START_Y),
+			passengerCount(passengerCount), packageCount(passengerCount)
 	{
-		if (type == ObstacleType::TREE)
+		// Grid
+		generateGrid();
+
+		// Fuel Sations
+		generateFuelStations();
+		
+		// Obstacles
+		generateObstacles();
+
+		// Passengers
+		generatePassengers();
+
+		// Packages
+		generatePackages();
+	}
+
+	~Board()
+	{
+		// Delete Fuel Station
+		delete[] fuelStations;
+
+		// Delete Obstacles
+		delete[] obstacles;
+
+		// Delete Passengers
+		delete[] passengers;
+
+		// Delete Packages
+		delete[] packages;
+	}
+
+	int getFuelStationCount() const { return fuelStationCount; }
+	FuelStation getFuelStation(int i) { return fuelStations[i]; }
+
+	int getObstacleCount() const { return obstacleCount; }
+	Obstacle getObstacles(int i) { return obstacles[i]; }
+
+	int getPassengerCount() const { return passengerCount; }
+	Passenger &getPassenger(int i) { return passengers[i]; }
+
+	int getPackageCount() const { return packageCount; }
+	Package &getPackage(int i) { return packages[i]; }
+
+	RoleChangeStation getRolecChangeStation() { return roleChangeStation; }
+
+	void generateFuelStations()
+	{
+		fuelStations = new FuelStation[fuelStationCount];
+
+		int index = 0;
+		while (index < fuelStationCount)
 		{
-			// Trunk
-			DrawRectangle(x + 15, y + 5, 10, 15, colors[BROWN]);
+			int randX = rand() % 20;
+			int randY = rand() % 20;
 
-			// Leafs
-			DrawCircle(x + 20, y + 30, 7, colors[DARK_GREEN]);
-			DrawCircle(x + 15, y + 22, 7, colors[DARK_GREEN]);
-			DrawCircle(x + 25, y + 22, 7, colors[DARK_GREEN]);
-
-			// Roots
-			DrawTriangle(x + 20, y + 15, x + 12, y, x + 28, y, colors[BROWN]);
+			if (isRoad(randY, randX) && !(randX == 0 && randY == 0))
+			{
+				fuelStations[index++] = FuelStation(GRID_START_X + CELL_SIZE * randX, GRID_END_Y - CELL_SIZE * randY);
+				grid[randY][randX] = BoardObjects::FUEL_STATION;
+			}
 		}
-		else if (type == ObstacleType::BOX)
+	}
+	void generateObstacles()
+	{
+		obstacles = new Obstacle[obstacleCount];
+
+		int index = 0;
+		while (index < obstacleCount)
 		{
-			DrawSquare(x + 5, y + 5, 30, colors[BROWN]); // Box
-			
-			// Mark
-			DrawLine(x + 10, y + 28, x + 30, y + 10, 5, colors[RED]);
-			DrawLine(x + 10, y + 10, x + 30, y + 28, 5, colors[RED]);
+			int randX = rand() % 20;
+			int randY = rand() % 20;
+
+			if (isRoad(randY, randX) && !(randX == 0 && randY == 0))
+			{
+				obstacles[index++] = Obstacle(GRID_START_X + CELL_SIZE * randX, GRID_END_Y - CELL_SIZE * randY, rand() % 2);
+				grid[randY][randX] = BoardObjects::OBSTACLE;
+			}
+		}
+	}
+	void generatePassengers()
+	{
+		passengers = new Passenger[passengerCount];
+
+		int index = 0;
+		while (index < passengerCount)
+		{
+			int randX = rand() % 20;
+			int randY = rand() % 20;
+			int randDesX = rand() % 20;
+			int randDesY = rand() % 20;
+
+			if (isRoad(randY, randX) && isRoad(randDesY, randDesX) && !(randX == 0 && randY == 0) && !(randX == randDesX && randY == randDesY))
+				passengers[index++] = Passenger(GRID_START_X + CELL_SIZE * randX, GRID_END_Y - CELL_SIZE * randY,
+												GRID_START_X + CELL_SIZE * randDesX, GRID_END_Y - CELL_SIZE * randDesY);
 		}
 	}
 
-	bool overlaps(int carX, int carY) const { return carX == x && carY == y; }
+	void generatePackages()
+	{
+		packages = new Package[packageCount];
+
+		int index = 0;
+		while (index < packageCount)
+		{
+			int randX = rand() % 20;
+			int randY = rand() % 20;
+			int randDesX = rand() % 20;
+			int randDesY = rand() % 20;
+
+			if (isRoad(randY, randX) && isRoad(randDesY, randDesX) && !(randX == 0 && randY == 0) && !(randX == randDesX && randY == randDesY))
+				packages[index++] = Package(GRID_START_X + CELL_SIZE * randX, GRID_END_Y - CELL_SIZE * randY,
+											GRID_START_X + CELL_SIZE * randDesX, GRID_END_Y - CELL_SIZE * randDesY);
+		}
+	}
+
+	void setRandomPos(Passenger &p)
+	{
+		while (true)
+		{
+			int randX = rand() % 20;
+			int randY = rand() % 20;
+			int randDesX = rand() % 20;
+			int randDesY = rand() % 20;
+
+			if (isRoad(randY, randX) && isRoad(randDesY, randDesX) && !(randX == 0 && randY == 0) && !(randX == randDesX && randY == randDesY))
+			{
+				p = Passenger(GRID_START_X + CELL_SIZE * randX, GRID_END_Y - CELL_SIZE * randY,
+								GRID_START_X + CELL_SIZE * randDesX, GRID_END_Y - CELL_SIZE * randDesY);
+				break;
+			}
+		}
+	}
+
+	void setRandomPos(Package &p)
+	{
+		while (true)
+		{
+			int randX = rand() % 20;
+			int randY = rand() % 20;
+			int randDesX = rand() % 20;
+			int randDesY = rand() % 20;
+
+			if (isRoad(randY, randX) && isRoad(randDesY, randDesX) && !(randX == 0 && randY == 0) && !(randX == randDesX && randY == randDesY))
+			{
+				p = Package(GRID_START_X + CELL_SIZE * randX, GRID_END_Y - CELL_SIZE * randY,
+							GRID_START_X + CELL_SIZE * randDesX, GRID_END_Y - CELL_SIZE * randDesY);
+				break;
+			}
+		}
+		
+	}
+
+	bool isRoad(int i, int j) const { return i >= 0 && i < SIZE && j >= 0 && j < SIZE && grid[i][j] == BoardObjects::ROAD; }
+	bool isDrivable(int i, int j) const 
+	{ 
+		return i >= 0 && i < SIZE && j >= 0 && j < SIZE && (grid[i][j] == BoardObjects::ROAD || 
+															grid[i][j] == BoardObjects::FUEL_STATION || 
+															grid[i][j] == BoardObjects::ROLE_CHANGE_STATION); 
+	}
+
+	void generateGrid()
+	{
+		int temp[20][20] = 
+		{
+			{0,0,0,0,1,1,1,0,0,1,1,0,0,0,1,1,0,0,0,0},
+			{0,1,1,0,1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,0},
+			{0,1,0,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,1,0},
+			{0,1,0,1,1,0,1,0,1,0,1,1,1,0,1,1,1,0,1,0},
+			{0,1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,1,0},
+			{0,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,0},
+			{0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,1,0,1,0},
+			{1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,0,1,0},
+			{0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0},
+			{1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0},
+			{0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0},
+			{0,1,1,0,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,0},
+			{0,1,0,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,1,0},
+			{0,1,0,0,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1,0},
+			{0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1,0},
+			{0,1,0,0,1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,0},
+			{0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0},
+			{1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0},
+			{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+			{0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0}
+		};
+
+		for (int i = 0; i < SIZE; i++)
+			for (int j = 0; j < SIZE; j++)
+				grid[i][j] = temp[i][j];
+
+		for (int i = 0; i < 100; i++)
+		{
+			int randX = rand() % 20;
+			int randY = rand() % 20;
+
+			if (grid[randX][randY] == BoardObjects::BUILDING)
+				grid[randX][randY] = BoardObjects::ROAD;
+		}
+	}
+
+	void draw(Player &playerCar) const
+	{
+		// Background
+		DrawSquare(GRID_START_X, GRID_START_Y, 800, colors[GRAY]);
+
+		// Buildings
+		for (int i = 0; i < SIZE; i++)
+			for (int j = 0; j < SIZE; j++)
+				if (grid[i][j] == BoardObjects::BUILDING)
+					DrawSquare(GRID_START_X + CELL_SIZE * j, GRID_END_Y - CELL_SIZE * i, CELL_SIZE, colors[BLACK]);
+
+		// Fuel Stations
+		for (int i = 0; i < fuelStationCount; i++)
+			fuelStations[i].draw();
+
+		// Obstactes
+		for (int i = 0; i < obstacleCount; i++)
+			obstacles[i].draw();
+
+		// Role Change Station
+		roleChangeStation.draw();
+
+		// Passengers & Packages
+		if (playerCar.getRole() == PlayerRoles::TAXI)
+			for (int i = 0; i < passengerCount; i++)
+				passengers[i].draw();
+		else if (playerCar.getRole() == PlayerRoles::DELIVERY)
+			for (int i = 0; i < packageCount; i++)
+				packages[i].draw();
+
+		// Grid Lines
+		for (int i = 0; i <= SIZE; i++)
+		{
+			DrawLine(200, 900 - 40 * i, 1000, 900 - 40 * i, 2, colors[BLACK]);
+			DrawLine(200 + 40 * i, 900, 200 + 40 * i, 100, 2, colors[BLACK]);
+		}
+	}
+
 };
 
 /*=======================================*//* My Classes *//*=======================================*/
-using namespace std;
 
-// seed the random numbers generator by current time (see the documentation of srand for further help)...
+float gameTime = 180;
 
 /* Function sets canvas size (drawing area) in pixels...
  *  that is what dimensions (x and y) your game will have
  *  Note that the bottom-left coordinate has value (0,0) and top-right coordinate has value (width-1,height-1)
  * */
-
-float gameTime = 180;
-
 void SetCanvasSize(int width, int height)
 {
 	glMatrixMode (GL_PROJECTION);
@@ -97,12 +328,14 @@ void SetCanvasSize(int width, int height)
 /*=======================================*//* Class Objects *//*=======================================*/
 
 Player playerCar(rand() % 2);
-Passenger passenger(400, 300, 400, 500);
-Package package(480, 380, 480, 580);
-FuelStation fuelStation(480, 500);
-RoleChangeStation roleStation(480, 420);
-Obstacle tree(320, 220, ObstacleType::TREE);
-Obstacle box(360, 220, ObstacleType::BOX);
+// Package package(480, 380, 480, 580);
+
+int randFuel = 2 + rand() % 2;
+int randObs = 4 + rand() % 3;
+int randPass = 2 + rand() % 3;
+int randPack = 2 + rand() % 2;
+
+Board board(randFuel, randObs, randPass, randPack);
 
 /*=======================================*//* Class Objects *//*=======================================*/
 
@@ -122,49 +355,40 @@ void GameDisplay()/**/
 	int minutes = int(gameTime) / 60;
 	int seconds = int(gameTime) % 60;
 	string timeStr = "Time: " + to_string(minutes) + ":" + (seconds < 10 ? "0" : "") + to_string(seconds);
+
 	string scoreStr = "Score: " + to_string(playerCar.getScore());
+
 	ostringstream stream;
 	stream << fixed << setprecision(2) << playerCar.getCash();
 	string cashStr = "Cash: " + stream.str() + "$";
+
+	string roleStr = string(playerCar.getRole() == PlayerRoles::TAXI ? "Taxi" : "Delivery") + " Driver";
 	
 	DrawString(50, 950, timeStr, colors[BLACK]);
 	DrawString(550, 950, scoreStr, colors[BLACK]);
 	DrawString(1000, 950, cashStr, colors[BLACK]);
+	DrawString(500, 40, "Role: ", colors[BLACK]);
+	DrawString(560, 40, roleStr, colors[(playerCar.getRole() == PlayerRoles::TAXI ? ORANGE : BLUE)]);
 
 	// Fuel Indicator
 	float *fuelColor;
 
-	if (playerCar.getFuel()  >= 80)
+	if (playerCar.getFuel()  >= 160)
 		fuelColor = colors[GREEN];
-	else if (playerCar.getFuel()  >= 50)
+	else if (playerCar.getFuel()  >= 100)
 		fuelColor = colors[YELLOW];
-	else if (playerCar.getFuel()  >= 30)
+	else if (playerCar.getFuel()  >= 60)
 		fuelColor = colors[ORANGE];
 	else
 		fuelColor = colors[RED];
 
 	DrawRoundRect(66, 446, 58, 208, colors[BLACK], 5);
 	DrawRoundRect(68, 448, 54, 204, colors[WHITE], 5);
-	DrawRoundRect(70, 450, 50, 200 * (playerCar.getFuel() / float(MAX_FUEL)) + 1, fuelColor, 5);
+	DrawRoundRect(70, 450, 50, 200 * (playerCar.getFuel() / float(MAX_FUEL)), fuelColor, 5);
 
 	// Testing Objects
-	if (playerCar.getRole() == PlayerRoles::TAXI)
-		passenger.draw();
-	else
-		package.draw();
-
-	fuelStation.draw();
-	roleStation.draw();
+	board.draw(playerCar);
 	playerCar.draw();
-	tree.draw();
-	box.draw();
-
-	// Grid
-	for (int i = 0; i < 21; i++)
-	{
-		DrawLine(200, 900 - 40 * i, 1000, 900 - 40 * i, 2, colors[BLACK]);
-		DrawLine(200 + 40 * i, 900, 200 + 40 * i, 100, 2, colors[BLACK]);
-	}
 	
 	glutSwapBuffers(); // do not modify this line..
 }
@@ -178,44 +402,36 @@ void GameDisplay()/**/
  * program coordinates of mouse pointer when key was pressed.
  *
  * */
-
 void NonPrintableKeys(int key, int x, int y)
 {
-	if (key == GLUT_KEY_LEFT)
-    {
-		playerCar.moveLeft();
-		if (tree.overlaps(playerCar.getX(), playerCar.getY()) || box.overlaps(playerCar.getX(), playerCar.getY()))
-		{
-			playerCar.moveRight();
-			playerCar.updateScore(playerCar.getRole() == PlayerRoles::TAXI ? -2 : -4);
-		}
+	int oldX = playerCar.getX();
+	int oldY = playerCar.getY();
+	int newX = oldX;
+	int newY = oldY;
+
+	if 		(key == GLUT_KEY_LEFT)  newX -= CELL_SIZE;
+	else if (key == GLUT_KEY_RIGHT) newX += CELL_SIZE;
+	else if (key == GLUT_KEY_UP)    newY += CELL_SIZE;
+	else if (key == GLUT_KEY_DOWN)  newY -= CELL_SIZE;
+
+	// Convert to grid indices
+	int i = (GRID_END_Y - newY) / CELL_SIZE;
+	int j = (newX - GRID_START_X) / CELL_SIZE;
+
+	// Check collision
+	bool valid = board.isDrivable(i, j);
+	for (int k = 0; k < board.getObstacleCount() && valid; k++)
+		if (board.getObstacles(k).overlaps(newX, newY))
+			valid = false;
+
+	if (valid)
+	{
+		playerCar.setX(newX);
+		playerCar.setY(newY);
 	}
-    else if (key == GLUT_KEY_RIGHT)
-    {
-		playerCar.moveRight();
-		if (tree.overlaps(playerCar.getX(), playerCar.getY()) || box.overlaps(playerCar.getX(), playerCar.getY()))
-		{
-			playerCar.moveLeft();
-			playerCar.updateScore(playerCar.getRole() == PlayerRoles::TAXI ? -2 : -4);
-		}
-	}
-    else if (key == GLUT_KEY_UP)
-    {
-		playerCar.moveUp();
-		if (tree.overlaps(playerCar.getX(), playerCar.getY()) || box.overlaps(playerCar.getX(), playerCar.getY()))
-		{
-			playerCar.moveDown();
-			playerCar.updateScore(playerCar.getRole() == PlayerRoles::TAXI ? -2 : -4);
-		}
-	}
-	else if (key == GLUT_KEY_DOWN)
-    {
-		playerCar.moveDown();
-		if (tree.overlaps(playerCar.getX(), playerCar.getY()) || box.overlaps(playerCar.getX(), playerCar.getY()))
-		{
-			playerCar.moveUp();
-			playerCar.updateScore(playerCar.getRole() == PlayerRoles::TAXI ? -2 : -4);
-		}
+	else
+	{
+		playerCar.updateScore(playerCar.getRole() == PlayerRoles::TAXI ? -2 : -4);
 	}
 
 	/* This function calls the Display function to redo the drawing. Whenever you need to redraw just call
@@ -238,42 +454,61 @@ void PrintableKeys(unsigned char key, int x, int y)
 
 	if (key == 'f' || key == 'F')
 	{
-		if (fuelStation.overlaps(playerCar.getX(), playerCar.getY())) 
-			fuelStation.reFuel(playerCar);
+		for (int i = 0; i < board.getFuelStationCount(); i++)
+		{
+			if (board.getFuelStation(i).overlaps(playerCar.getX(), playerCar.getY()))
+				board.getFuelStation(i).reFuel(playerCar);
+		}
 	}
 
 	if (key == 'p' || key == 'P')
 	{
-		if (roleStation.overlaps(playerCar.getX(), playerCar.getY()))
-			roleStation.changeRole(playerCar);
+		if (board.getRolecChangeStation().overlaps(playerCar.getX(), playerCar.getY()))
+			board.getRolecChangeStation().changeRole(playerCar);
 	}
 
 	if (key == ' ')
     {
 		if (playerCar.getRole() == PlayerRoles::TAXI)
 		{
-			if (!passenger.isPickedUp() && passenger.overlaps(playerCar.getX(), playerCar.getY())) 
-				passenger.setPickedUp(true);
-
-			if (passenger.isPickedUp() && passenger.overlaps(playerCar.getX(), playerCar.getY())) 
+			for (int i = 0; i < board.getPassengerCount(); i++)
 			{
-				passenger.setReached(true);
-				playerCar.updateScore(10);
-				playerCar.updateCash(passenger.getFair());
-				playerCar.jobCompleted();
+				Passenger &p = board.getPassenger(i);
+				if (!p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
+				{
+					p.setPickedUp(true);
+					break;
+				}
+
+				if (p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
+				{
+					board.setRandomPos(p);
+
+					p.setReached(true);
+					playerCar.updateScore(10);
+					playerCar.updateCash(p.getFair());
+					playerCar.jobCompleted();
+				}
 			}
 		}
 		else if (playerCar.getRole() == PlayerRoles::DELIVERY)
 		{
-			if (!package.isPickedUp() && package.overlaps(playerCar.getX(), playerCar.getY())) 
-				package.setPickedUp(true);
-
-			if (package.isPickedUp() && package.overlaps(playerCar.getX(), playerCar.getY())) 
+			for (int i = 0; i < board.getPackageCount(); i++)
 			{
-				package.setDroppedOff(true);
-				playerCar.updateScore(20);
-				playerCar.updateCash(package.getFee());
-				playerCar.jobCompleted();
+				Package &p = board.getPackage(i);
+				if (!p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
+				{
+					p.setPickedUp(true);
+					break;
+				}
+
+				if (p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
+				{
+					p.setDroppedOff(true);
+					playerCar.updateScore(20);
+					playerCar.updateCash(p.getFee());
+					playerCar.jobCompleted();
+				}
 			}
 		}
 	}
@@ -346,7 +581,7 @@ int main(int argc, char*argv[])
 	int width = WIDTH, height = HEIGHT;
     
 	InitRandomizer(); // seed the random number generator...
-	srand(time(0));
+	// srand(time(0));
 
 	glutInit(&argc, argv); // initialize the graphics library...
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA); // we will be using color display mode

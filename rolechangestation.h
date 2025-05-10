@@ -16,7 +16,7 @@ public:
 	int getX() const;
 	int getY() const;
 
-	int draw();
+	void draw() const;
 
 	bool overlaps(int carX, int carY) const;
 	void changeRole(Player &p);
