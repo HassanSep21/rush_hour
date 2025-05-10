@@ -18,6 +18,7 @@ private:
 	int score; 
 	int jobsCompleted;
 	int role;
+	bool holding;
 
 public:
 	Player(int role = 0);
@@ -25,14 +26,15 @@ public:
 	string getName() const;
 	void setName(string name);
 	float getCash() const; 
+	void updateCash(float amount); 
 	int getScore() const;  
+	void updateScore(int points);
 	int getRole() const;   
 	void toggleRole();
-
+	int getjobsCompleted() const;
 	void jobCompleted();
-
-	void updateScore(int points);
-	void updateCash(float amount); 
+	bool isHolding() const;
+	void setHolding(bool state);
 };
 
 #endif

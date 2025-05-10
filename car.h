@@ -14,11 +14,6 @@ private:
 public:
 	Car(int x = 40, int y = 40, float *color = nullptr, int fuel = MAX_FUEL);
 
-	void moveUp();
-	void moveDown();
-	void moveRight();
-	void moveLeft();
-
 	int getX() const;  	 
 	int getY() const; 
 	void setX(int x);

@@ -2,42 +2,6 @@
 
 Car::Car(int x, int y, float *color, int fuel) : x(x), y(y), color(color ? color : colors[rand() % COLOR_COUNT]), fuel(fuel) {}
 
-void Car::moveUp() 
-{
-    if (fuel > 0)
-    {
-        y += CELL_SIZE; 
-        fuel--;
-    }
-}
-	
-void Car::moveDown() 
-{
-    if (fuel > 0)
-    {
-        y -= CELL_SIZE; 
-        fuel--;
-    }
-	}
-	
-void Car::moveRight() 
-{
-    if (fuel > 0)
-    {
-        x += CELL_SIZE; 
-        fuel--;
-    }
-}
-	
-void Car::moveLeft() 
-{
-    if (fuel > 0)
-    {
-        x -= CELL_SIZE; 
-        fuel--;
-    }
-}
-
 int Car::getX() const { return x; }
 int Car::getY() const { return y; }
 void Car::setX(int x) 

@@ -1,5 +1,5 @@
 //============================================================================
-// Name        : .cpp
+// Name        : game.cpp
 // Author      : Dr. Sibt Ul Hussain
 // Version     :
 // Copyright   : (c) Reserved
@@ -258,13 +258,17 @@ public:
 			for (int j = 0; j < SIZE; j++)
 				grid[i][j] = temp[i][j];
 
-		for (int i = 0; i < 100; i++)
+		int count = 0;
+		while (count < 80)
 		{
 			int randX = rand() % 20;
 			int randY = rand() % 20;
 
 			if (grid[randX][randY] == BoardObjects::BUILDING)
+			{
 				grid[randX][randY] = BoardObjects::ROAD;
+				count++;
+			}
 		}
 	}
 
@@ -308,8 +312,6 @@ public:
 
 };
 
-/*=======================================*//* My Classes *//*=======================================*/
-
 float gameTime = 180;
 
 /* Function sets canvas size (drawing area) in pixels...
@@ -328,7 +330,6 @@ void SetCanvasSize(int width, int height)
 /*=======================================*//* Class Objects *//*=======================================*/
 
 Player playerCar(rand() % 2);
-// Package package(480, 380, 480, 580);
 
 int randFuel = 2 + rand() % 2;
 int randObs = 4 + rand() % 3;
@@ -428,6 +429,18 @@ void NonPrintableKeys(int key, int x, int y)
 	{
 		playerCar.setX(newX);
 		playerCar.setY(newY);
+
+		// Running Over Passenger Penelty
+		for (int i = 0; i < board.getPassengerCount(); i++)
+			if (playerCar.isHolding() && (board.getPassenger(i).getX() == playerCar.getX() && 
+										  board.getPassenger(i).getY() == playerCar.getY()))
+				playerCar.updateScore(-5);
+		
+		// Running Over Package Penelty		
+		for (int i = 0; i < board.getPackageCount(); i++)
+			if (playerCar.isHolding() && (board.getPackage(i).getX() == playerCar.getX() && 
+										board.getPackage(i).getY() == playerCar.getY()))
+				playerCar.updateScore(-8);
 	}
 	else
 	{
@@ -474,20 +487,21 @@ void PrintableKeys(unsigned char key, int x, int y)
 			for (int i = 0; i < board.getPassengerCount(); i++)
 			{
 				Passenger &p = board.getPassenger(i);
-				if (!p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
+				if (!playerCar.isHolding() && !p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
 				{
 					p.setPickedUp(true);
+					playerCar.setHolding(true);
 					break;
 				}
 
 				if (p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
 				{
-					board.setRandomPos(p);
-
 					p.setReached(true);
 					playerCar.updateScore(10);
 					playerCar.updateCash(p.getFair());
 					playerCar.jobCompleted();
+
+					board.setRandomPos(p);
 				}
 			}
 		}
@@ -496,9 +510,10 @@ void PrintableKeys(unsigned char key, int x, int y)
 			for (int i = 0; i < board.getPackageCount(); i++)
 			{
 				Package &p = board.getPackage(i);
-				if (!p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
+				if (!playerCar.isHolding() && !p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
 				{
 					p.setPickedUp(true);
+					playerCar.setHolding(true);
 					break;
 				}
 
@@ -508,6 +523,8 @@ void PrintableKeys(unsigned char key, int x, int y)
 					playerCar.updateScore(20);
 					playerCar.updateCash(p.getFee());
 					playerCar.jobCompleted();
+
+					board.setRandomPos(p);
 				}
 			}
 		}
