@@ -21,6 +21,8 @@
 #include <iomanip>
 #include <string>
 #include <cmath>
+#include <cstring>
+#include <fstream>
 #include <sstream>
 
 #define cimg_display 0

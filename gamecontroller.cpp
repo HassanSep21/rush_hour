@@ -1,6 +1,78 @@
 #include "gamecontroller.h"
 
-static Board makeRandomBoard() {
+void GameController::handleFuelRefill()
+{
+    for (int i = 0; i < board.getFuelStationCount(); i++)
+    {
+        if (board.getFuelStation(i).overlaps(playerCar.getX(), playerCar.getY()))
+            board.getFuelStation(i).reFuel(playerCar);
+    }
+}
+
+void GameController::handleRoleChange()
+{
+    if (board.getRoleChangeStation().overlaps(playerCar.getX(), playerCar.getY()))
+            board.getRoleChangeStation().changeRole(playerCar);
+}
+
+void GameController::handlePickupAndDropoff()
+{
+    if (playerCar.getRole() == PlayerRoles::TAXI)
+    {
+        for (int i = 0; i < board.getPassengerCount(); i++)
+        {
+            Passenger &p = board.getPassenger(i);
+            if (!playerCar.isHolding() && !p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
+            {
+                p.setPickedUp(true);
+                playerCar.setHolding(true);
+                break;
+            }
+
+            if (p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
+            {
+                p.setReached(true);
+                playerCar.updateScore(10);
+                playerCar.updateCash(p.getFare());
+                playerCar.jobCompleted();
+
+                board.setRandomPos(p);
+            }
+        }
+    }
+    else if (playerCar.getRole() == PlayerRoles::DELIVERY)
+    {
+        for (int i = 0; i < board.getPackageCount(); i++)
+        {
+            Package &p = board.getPackage(i);
+            if (!playerCar.isHolding() && !p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
+            {
+                p.setPickedUp(true);
+                playerCar.setHolding(true);
+                break;
+            }
+
+            if (p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
+            {
+                p.setDroppedOff(true);
+                playerCar.updateScore(20);
+                playerCar.updateCash(p.getFee());
+                playerCar.jobCompleted();
+
+                board.setRandomPos(p);
+            }
+        }
+    }
+
+    if (playerCar.getJobsCompleted() != 0 && playerCar.getJobsCompleted() % 2 == 0)
+    {
+        NPC::setSpeedDelay(NPC::getSpeedDelay() - 1);
+        board.increaseNpcs();
+    }
+}
+
+Board GameController::makeRandomBoard() 
+{
     int randFuel = 2 + rand() % 2;
     int randObs = 4 + rand() % 3;
     int randPass = 2 + rand() % 3;
@@ -8,84 +80,169 @@ static Board makeRandomBoard() {
     return Board(randFuel, randObs, randPass, randPack);
 }
 
-GameController::GameController() : 
-    playerCar(0),  // Default role (will be set in initializeGame)
-    state(GameState::MENU),
-    gameTime(180),
-    menuSelection(0),
-    boardInitialized(false),
-    board(makeRandomBoard())
-{}
+GameController::GameController() : gameState(GameState::GAME_MENU), gameTime(GAME_TIME),
+                                    menuSelection(0), board(makeRandomBoard()) {}
 
-void GameController::initializeGame(int role) {
-    // Ensure random seed is properly set
-    if (!boardInitialized) {
-        srand(time(NULL));
-        boardInitialized = true;
-    }
+void GameController::checkGameStatus()
+{
+    if (playerCar.getScore() >= 100)
+    {
+        gameState = GameState::GAME_WIN;
+        leaderboard.updateLeaderboard(playerCar.getName().c_str(), playerCar.getScore());
+    }		
     
-    // -1 means random role
-    if (role == -1) {
-        role = rand() % 2;
-    }
-    
-    // Initialize player with selected role
-    playerCar = Player(role);
-    
-    // Reset game timer
-    gameTime = 180;
-    
-    // Initialize board with random values
-    int randFuel = 2 + rand() % 2;
-    int randObs = 4 + rand() % 3;
-    int randPass = 2 + rand() % 3;
-    int randPack = 2 + rand() % 2;
-    
-    // Change state to playing
-    state = GameState::PLAYING;
+    if (playerCar.getScore() < 0 || playerCar.getFuel() <= 10 || gameTime <= 0)
+    {
+        gameState = GameState::GAME_OVER;
+        leaderboard.updateLeaderboard(playerCar.getName().c_str(), playerCar.getScore());
+    }	
 }
 
-void GameController::update() {
-    if (state != GameState::PLAYING) {
-        return;
+void GameController::render() const
+{
+    switch (gameState)
+    {
+        case GameState::GAME_MENU: drawMenu(); break;
+        case GameState::GAME_START: drawGame(); break;
+        case GameState::GAME_WIN: drawWinScreen(); break;
+        case GameState::GAME_OVER: drawGameOverScreen(); break;
+        case GameState::GAME_INPUT_NAME: drawNameInputScreen(); break;
+        case GameState::GAME_SHOW_LEADERBOARD: drawLeaderBoard(); break;
     }
+}
+
+int GameController::getGameState() const { return gameState; }
+
+void GameController::handleNonPrintableKeys(int key)
+{
+    if (gameState != GameState::GAME_START) return;
+
+    int oldX = playerCar.getX();
+    int oldY = playerCar.getY();
+    int newX = oldX;
+    int newY = oldY;
+
+    if 		(key == GLUT_KEY_LEFT)  newX -= CELL_SIZE;
+    else if (key == GLUT_KEY_RIGHT) newX += CELL_SIZE;
+    else if (key == GLUT_KEY_UP)    newY += CELL_SIZE;
+    else if (key == GLUT_KEY_DOWN)  newY -= CELL_SIZE;
+
+    // Convert to grid indices
+    int i = (GRID_END_Y - newY) / CELL_SIZE;
+    int j = (newX - GRID_START_X) / CELL_SIZE;
+
+    // Check collision
+    bool valid = board.isDrivable(i, j);
+    for (int k = 0; k < board.getObstacleCount() && valid; k++)
+        if (board.getObstacles(k).overlaps(newX, newY))
+            valid = false;
+
+    if (valid)
+    {
+        playerCar.setX(newX);
+        playerCar.setY(newY);
+
+        // Running Over Passenger Penelty
+        for (int i = 0; i < board.getPassengerCount(); i++)
+            if (playerCar.isHolding() && (board.getPassenger(i).getX() == playerCar.getX() && 
+                                            board.getPassenger(i).getY() == playerCar.getY()))
+                playerCar.updateScore(-5);
+        
+        // Running Over Package Penelty		
+        for (int i = 0; i < board.getPackageCount(); i++)
+            if (playerCar.isHolding() && (board.getPackage(i).getX() == playerCar.getX() && 
+                                        board.getPackage(i).getY() == playerCar.getY()))
+                playerCar.updateScore(-8);
+
+        // If YOU Hit An NPC Car Penelty
+        for (int i = 0; i < board.getNpcCount(); i++)
+            if (playerCar.getX() == board.getNpc(i).getX() && playerCar.getY() == board.getNpc(i).getY())
+                playerCar.updateScore(playerCar.getRole() == PlayerRoles::TAXI ? -3 : -5);
+    }
+    else
+    {
+        playerCar.updateScore(playerCar.getRole() == PlayerRoles::TAXI ? -2 : -4);
+    }
+}
+
+void GameController::handlePrintableKeys(char key)
+{
+    if (key == 27) { exit(1); }
+
+    string str;
+    switch (gameState)
+    {
+        case GameState::GAME_MENU:
+            if (key == 't' || key == 'T') playerCar.setRole(PlayerRoles::TAXI);
+            else if (key == 'd' == key == 'D') playerCar.setRole(PlayerRoles::DELIVERY);
+            else if (key == 'r' || key == 'R') playerCar.setRole(rand() % 2);
+            else if (key == 'l' || key == 'L') { gameState = GameState::GAME_SHOW_LEADERBOARD; break; }
+            gameState = GameState::GAME_INPUT_NAME;
+            break;
+
+        case GameState::GAME_INPUT_NAME:
+            if (key == '\r')
+                gameState = GameState::GAME_START;
+
+            str = playerCar.getName() + key;
+            playerCar.setName(str);
+            break;
+
+        case GameState::GAME_START:
+            if (key == 'f' || key == 'F') handleFuelRefill();
+            else if (key == 'p' || key == 'P') handleRoleChange();
+            else if (key == ' ') handlePickupAndDropoff();
+            break;
+
+        case GameState::GAME_SHOW_LEADERBOARD:
+            if (key == 'm' || key == 'M') gameState = GameState::GAME_MENU;
+            break;
+    }
+}
+
+void GameController::update() 
+{
+    if (gameState != GameState::GAME_START) return;
     
-    // Update game timer
-    gameTime -= 0.1;
-    
-    // Update NPCs
+    // Game Timer
+    updateTime();
+
+    // NPC Movement
     updateNPCs();
-    
-    // Check if game is over or won
+
+    // Check Game Status Win or Over
     checkGameStatus();
 }
 
-void GameController::updateNPCs() {
-    for (int i = 0; i < board.getNpcCount(); i++) {
+void GameController::updateTime() { gameTime -= 0.1; }
+
+void GameController::updateNPCs()
+{
+    for (int i = 0; i < board.getNpcCount(); i++)
+    {
         board.getNpc(i).setFrameCounter(board.getNpc(i).getFrameCounter() + 1);
-        if (board.getNpc(i).getFrameCounter() >= board.getNpc(i).getSpeedDelay()) {
+        if (board.getNpc(i).getFrameCounter() >= board.getNpc(i).getSpeedDelay())
+        {
             board.getNpc(i).setFrameCounter(0);
 
-            int attempts = 0;
-            const int MAX_ATTEMPTS = 10;  // Prevent infinite loops
-            
-            while (attempts < MAX_ATTEMPTS) {
-                attempts++;
+            int attemps = 0;
+            const int MAX_ATTEMPTS = 20;
+            while (attemps++ < MAX_ATTEMPTS)
+            {
                 int newY = board.getNpc(i).getY();
                 int newX = board.getNpc(i).getX();
         
                 int randDir = rand() % 4;
-                switch (randDir) {
-                    case 0: newX -= CELL_SIZE; break; // Left
-                    case 1: newX += CELL_SIZE; break; // Right
-                    case 2: newY += CELL_SIZE; break; // Up
-                    case 3: newY -= CELL_SIZE; break; // Down
-                }
-
-                // Ensure we stay within grid bounds
-                if (newX < GRID_START_X || newX >= GRID_END_X || 
-                    newY < GRID_START_Y || newY >= GRID_END_Y) {
-                    continue;
+                switch (randDir)
+                {
+                    // Left
+                    case 0: newX -= CELL_SIZE; break; 
+                    // Right
+                    case 1: newY += CELL_SIZE; break;
+                    // Up
+                    case 2: newY -= CELL_SIZE; break;
+                    // Down
+                    case 3: newY += CELL_SIZE; break;
                 }
 
                 // Convert to grid indices
@@ -94,337 +251,210 @@ void GameController::updateNPCs() {
 
                 // Check collision
                 bool valid = board.isDrivable(y, x);
-                
-                for (int k = 0; k < board.getObstacleCount() && valid; k++) {
-                    if (board.getObstacles(k).overlaps(newX, newY)) {
+                for (int k = 0; k < board.getObstacleCount() && valid; k++)
+                    if (board.getObstacles(k).overlaps(newX, newY))
                         valid = false;
-                    }
-                }
 
-                if (valid) {
+                if (valid)
+                {
                     board.getNpc(i).setX(newX);
                     board.getNpc(i).setY(newY);
                     break;
-                }    
+                }	
             }
         }
     }
 }
 
-void GameController::checkGameStatus() {
-    // Check win condition (score >= 100)
-    if (playerCar.getScore() >= 100) {
-        state = GameState::WIN;
-    }
-    
-    // Check lose condition (score < 0 or time up)
-    if (playerCar.getScore() < 0 || gameTime <= 0) {
-        state = GameState::GAMEOVER;
-    }
+void GameController::drawMenu() const
+{
+    // Title Box
+    DrawRoundRect(WIDTH / 2 - 200, HEIGHT - 210, 400, 60, colors[RED], 20);
+    DrawString(WIDTH / 2 - 90, HEIGHT - 190, "RUSH HOUR", colors[WHITE]);
+
+    // Option Button Settings
+    int buttonWidth = 360;
+    int buttonHeight = 40;
+    int startY = HEIGHT / 2 + 80;
+    int gap = 55;
+
+    // Button 1: Taxi Driver
+    DrawRoundRect(WIDTH / 2 - buttonWidth / 2, startY, buttonWidth, buttonHeight, colors[ORANGE], 10);
+    DrawString(WIDTH / 2 - 140, startY + 10, "[T] Play as Taxi Driver", colors[BLACK]);
+
+    // Button 2: Delivery Driver
+    DrawRoundRect(WIDTH / 2 - buttonWidth / 2, startY - gap, buttonWidth, buttonHeight, colors[BLUE], 10);
+    DrawString(WIDTH / 2 - 140, startY - gap + 10, "[D] Play as Delivery Driver", colors[WHITE]);
+
+    // Button 3: Random Role
+    DrawRoundRect(WIDTH / 2 - buttonWidth / 2, startY - 2 * gap, buttonWidth, buttonHeight, colors[GREEN], 10);
+    DrawString(WIDTH / 2 - 140, startY - 2 * gap + 10, "[R] Random Role", colors[BLACK]);
+
+    // Button 4: Leaderboard
+    DrawRoundRect(WIDTH / 2 - buttonWidth / 2, startY - 3 * gap, buttonWidth, buttonHeight, colors[YELLOW], 10);
+    DrawString(WIDTH / 2 - 140, startY - 3 * gap + 10, "[L] Leaderboard", colors[BLACK]);    
 }
 
-void GameController::togglePause() {
-    if (state == GameState::PLAYING) {
-        state = GameState::PAUSED;
-    } else if (state == GameState::PAUSED) {
-        state = GameState::PLAYING;
-    }
-}
-
-void GameController::resetGame() {
-    state = GameState::MENU;
-    menuSelection = 0;
-    boardInitialized = false;
-}
-
-void GameController::handleKeyPress(unsigned char key) {
-    switch (state) {
-        case GameState::MENU:
-            if (key == '1') {
-                // Taxi driver
-                initializeGame(0);
-            } else if (key == '2') {
-                // Delivery driver
-                initializeGame(1);
-            } else if (key == '3') {
-                // Random role
-                initializeGame(-1);
-            }
-            break;
-            
-        case GameState::PLAYING:
-            if (key == 27) { // Escape key
-                togglePause();
-            } else if (key == 'f' || key == 'F') {
-                handleFuelRefill();
-            } else if (key == 'p' || key == 'P') {
-                handleRoleChange();
-            } else if (key == ' ') {
-                handlePickupAndDropoff();
-            } else if (key == 'd' || key == 'D') {
-                // Debug key - print positions
-                debugPosition();
-            }
-            break;
-            
-        case GameState::PAUSED:
-            if (key == 27) { // Escape key
-                togglePause();
-            } else if (key == 'r' || key == 'R') {
-                resetGame();
-            }
-            break;
-            
-        case GameState::WIN:
-        case GameState::GAMEOVER:
-            if (key == 'r' || key == 'R') {
-                resetGame();
-            }
-            break;
-    }
-}
-
-void GameController::debugPosition() {
-    // Print player position
-    cout << "Player position: (" << playerCar.getX() << ", " << playerCar.getY() << ")" << endl;
-    
-    // Print grid bounds
-    cout << "Grid bounds: (" << GRID_START_X << ", " << GRID_START_Y << ") to (" 
-              << GRID_END_X << ", " << GRID_END_Y << ")" << endl;
-    
-    // Print first NPC position if available
-    if (board.getNpcCount() > 0) {
-        cout << "NPC 0 position: (" << board.getNpc(0).getX() << ", " << board.getNpc(0).getY() << ")" << endl;
-    }
-}
-
-void GameController::handleSpecialKeyPress(int key) {
-    if (state != GameState::PLAYING) {
-        return;
-    }
-    
-    int oldX = playerCar.getX();
-    int oldY = playerCar.getY();
-    int newX = oldX;
-    int newY = oldY;
-
-    if (key == GLUT_KEY_LEFT)       newX -= CELL_SIZE;
-    else if (key == GLUT_KEY_RIGHT) newX += CELL_SIZE;
-    else if (key == GLUT_KEY_UP)    newY += CELL_SIZE;
-    else if (key == GLUT_KEY_DOWN)  newY -= CELL_SIZE;
-
-    // Ensure we stay within grid bounds
-    if (newX < GRID_START_X || newX >= GRID_END_X || 
-        newY < GRID_START_Y || newY >= GRID_END_Y) {
-        return;
-    }
-
-    // Convert to grid indices
-    int i = (GRID_END_Y - newY) / CELL_SIZE;
-    int j = (newX - GRID_START_X) / CELL_SIZE;
-
-    // Check collision
-    bool valid = board.isDrivable(i, j);
-    for (int k = 0; k < board.getObstacleCount() && valid; k++) {
-        if (board.getObstacles(k).overlaps(newX, newY)) {
-            valid = false;
-        }
-    }
-
-    if (valid) {
-        playerCar.setX(newX);
-        playerCar.setY(newY);
-        
-        // Reduce fuel with movement
-        playerCar.setFuel(playerCar.getFuel() - 1);
-
-        // Running Over Passenger Penalty
-        for (int i = 0; i < board.getPassengerCount(); i++) {
-            if (!playerCar.isHolding() && (board.getPassenger(i).getX() == playerCar.getX() && 
-                                         board.getPassenger(i).getY() == playerCar.getY())) {
-                playerCar.updateScore(-5);
-            }
-        }
-        
-        // Running Over Package Penalty        
-        for (int i = 0; i < board.getPackageCount(); i++) {
-            if (!playerCar.isHolding() && (board.getPackage(i).getX() == playerCar.getX() && 
-                                        board.getPackage(i).getY() == playerCar.getY())) {
-                playerCar.updateScore(-8);
-            }
-        }
-
-        // If YOU Hit An NPC Car Penalty
-        for (int i = 0; i < board.getNpcCount(); i++) {
-            if (playerCar.getX() == board.getNpc(i).getX() && playerCar.getY() == board.getNpc(i).getY()) {
-                playerCar.updateScore(playerCar.getRole() == PlayerRoles::TAXI ? -3 : -5);
-            }
-        }
-    } else {
-        playerCar.updateScore(playerCar.getRole() == PlayerRoles::TAXI ? -2 : -4);
-    }
-}
-
-void GameController::handleFuelRefill() {
-    for (int i = 0; i < board.getFuelStationCount(); i++) {
-        if (board.getFuelStation(i).overlaps(playerCar.getX(), playerCar.getY())) {
-            board.getFuelStation(i).reFuel(playerCar);
-        }
-    }
-}
-
-void GameController::handleRoleChange() {
-    if (board.getRoleChangeStation().overlaps(playerCar.getX(), playerCar.getY())) {
-        board.getRoleChangeStation().changeRole(playerCar);
-    }
-}
-
-void GameController::handlePickupAndDropoff() {
-    if (playerCar.getRole() == PlayerRoles::TAXI) {
-        for (int i = 0; i < board.getPassengerCount(); i++) {
-            Passenger &p = board.getPassenger(i);
-            if (!playerCar.isHolding() && !p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) {
-                p.setPickedUp(true);
-                playerCar.setHolding(true);
-                break;
-            }
-
-            if (playerCar.isHolding() && p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) {
-                p.setPickedUp(false);
-                p.setReached(true);
-                playerCar.setHolding(false);
-                playerCar.updateScore(10);
-                playerCar.updateCash(p.getFare());
-                playerCar.jobCompleted();
-
-                board.setRandomPos(p);
-                break;
-            }
-        }
-    } else if (playerCar.getRole() == PlayerRoles::DELIVERY) {
-        for (int i = 0; i < board.getPackageCount(); i++) {
-            Package &p = board.getPackage(i);
-            if (!playerCar.isHolding() && !p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) {
-                p.setPickedUp(true);
-                playerCar.setHolding(true);
-                break;
-            }
-
-            if (playerCar.isHolding() && p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) {
-                p.setPickedUp(false);
-                p.setDroppedOff(true);
-                playerCar.setHolding(false);
-                playerCar.updateScore(20);
-                playerCar.updateCash(p.getFee());
-                playerCar.jobCompleted();
-
-                board.setRandomPos(p);
-                break;
-            }
-        }
-    }
-
-    if (playerCar.getJobsCompleted() != 0 && playerCar.getJobsCompleted() % 2 == 0) {
-        NPC::setSpeedDelay(NPC::getSpeedDelay() - 1);
-        board.increaseNpcs();
-    }
-}
-
-void GameController::drawGame() {
-    // Display Player Stats
+void GameController::drawGame() const
+{
+    // Format time as mm:ss
     int minutes = int(gameTime) / 60;
     int seconds = int(gameTime) % 60;
     string timeStr = "Time: " + to_string(minutes) + ":" + (seconds < 10 ? "0" : "") + to_string(seconds);
 
+    // Score and cash formatting
     string scoreStr = "Score: " + to_string(playerCar.getScore());
-
     ostringstream stream;
     stream << fixed << setprecision(2) << playerCar.getCash();
     string cashStr = "Cash: " + stream.str() + "$";
 
-    string roleStr = string(playerCar.getRole() == PlayerRoles::TAXI ? "Taxi" : "Delivery") + " Driver";
-    
+    // Role name and color
+    bool isTaxi = playerCar.getRole() == PlayerRoles::TAXI;
+    string roleStr = (isTaxi ? "Taxi" : "Delivery") + string(" Driver");
+    float* roleColor = colors[isTaxi ? ORANGE : BLUE];
+
+    // Draw info panel background
+    DrawRoundRect(20, 920, 1160, 60, colors[LIGHT_GRAY], 10);
+
+    // Draw labels
     DrawString(50, 950, timeStr, colors[BLACK]);
-    DrawString(550, 950, scoreStr, colors[BLACK]);
-    DrawString(1000, 950, cashStr, colors[BLACK]);
-    DrawString(500, 40, "Role: ", colors[BLACK]);
-    DrawString(560, 40, roleStr, colors[(playerCar.getRole() == PlayerRoles::TAXI ? ORANGE : BLUE)]);
+    DrawString(350, 950, scoreStr, colors[BLACK]);
+    DrawString(650, 950, cashStr, colors[BLACK]);
+    DrawString(950, 950, "Role: ", colors[BLACK]);
+    DrawString(1010, 950, roleStr, roleColor);
 
-    // Fuel Indicator
-    float *fuelColor;
-
-    if (playerCar.getFuel() >= 160)
+    // Fuel Indicator Box
+    float* fuelColor;
+    int fuel = playerCar.getFuel();
+    if (fuel >= 160)
         fuelColor = colors[GREEN];
-    else if (playerCar.getFuel() >= 100)
+    else if (fuel >= 100)
         fuelColor = colors[YELLOW];
-    else if (playerCar.getFuel() >= 60)
+    else if (fuel >= 60)
         fuelColor = colors[ORANGE];
     else
         fuelColor = colors[RED];
 
-    DrawRoundRect(66, 446, 58, 208, colors[BLACK], 5);
-    DrawRoundRect(68, 448, 54, 204, colors[WHITE], 5);
-    DrawRoundRect(70, 450, 50, 200 * (playerCar.getFuel() / float(MAX_FUEL)), fuelColor, 5);
+    // Draw Fuel Bar
+    int fuelX = 60, fuelY = 420;
+    DrawString(fuelX, fuelY + 250, "Fuel", colors[BLACK]);
+    DrawRoundRect(fuelX + 6, fuelY + 26, 58, 208, colors[BLACK], 5);    // Border
+    DrawRoundRect(fuelX + 8, fuelY + 28, 54, 204, colors[WHITE], 5);    // Background
+    DrawRoundRect(fuelX + 10, fuelY + 30, 50, 200 * (fuel / float(MAX_FUEL)), fuelColor, 5); // Fill
 
-    // Drawing game objects
+    // Draw Board and Player
     board.draw(playerCar);
     playerCar.draw();
 }
 
-void GameController::drawMenu() {
-    // Draw title
-    DrawString(WIDTH/2 - 100, HEIGHT - 200, "RUSH HOUR", colors[RED]);
-    
-    // Draw options
-    DrawString(WIDTH/2 - 150, HEIGHT/2 + 50, "1. Play as Taxi Driver", colors[ORANGE]);
-    DrawString(WIDTH/2 - 150, HEIGHT/2, "2. Play as Delivery Driver", colors[BLUE]);
-    DrawString(WIDTH/2 - 150, HEIGHT/2 - 50, "3. Random Role", colors[GREEN]);
-    
-    // Draw instructions
-    DrawString(WIDTH/2 - 200, HEIGHT/2 - 150, "Use arrow keys to move", colors[BLACK]);
-    DrawString(WIDTH/2 - 200, HEIGHT/2 - 180, "Space to pickup/dropoff", colors[BLACK]);
-    DrawString(WIDTH/2 - 200, HEIGHT/2 - 210, "F to refuel at fuel stations", colors[BLACK]);
-    DrawString(WIDTH/2 - 200, HEIGHT/2 - 240, "P to change role at role change stations", colors[BLACK]);
-    DrawString(WIDTH/2 - 200, HEIGHT/2 - 270, "ESC to pause game", colors[BLACK]);
-}
-
-void GameController::drawPauseScreen() {
-    // Draw semi-transparent overlay
+void GameController::drawGameOverScreen() const
+{
+    // Full white background
     DrawRectangle(0, 0, WIDTH, HEIGHT, colors[WHITE]);
-    
-    // Draw pause text
-    DrawString(WIDTH/2 - 80, HEIGHT/2 + 50, "GAME PAUSED", colors[RED]);
-    DrawString(WIDTH/2 - 120, HEIGHT/2, "Press ESC to continue", colors[BLACK]);
-    DrawString(WIDTH/2 - 120, HEIGHT/2 - 50, "Press R to return to menu", colors[BLACK]);
-}
 
-void GameController::drawGameOverScreen() {
-    // Draw semi-transparent overlay
-    DrawRectangle(0, 0, WIDTH, HEIGHT, colors[WHITE]);
-    
-    // Draw game over text
-    DrawString(WIDTH/2 - 80, HEIGHT/2 + 50, "GAME OVER", colors[RED]);
-    
-    // Show final score
+    // Draw a centered red banner for "GAME OVER"
+    DrawRoundRect(WIDTH / 2 - 200, HEIGHT / 2 + 30, 400, 60, colors[RED], 15);
+    DrawString(WIDTH / 2 - 80, HEIGHT / 2 + 50, "GAME OVER", colors[WHITE]);
+
+    // Final Score Box
+    DrawRoundRect(WIDTH / 2 - 180, HEIGHT / 2 - 10, 360, 50, colors[LIGHT_GRAY], 10);
     string scoreStr = "Final Score: " + to_string(playerCar.getScore());
-    DrawString(WIDTH/2 - 100, HEIGHT/2, scoreStr, colors[BLACK]);
-    
-    // Show instruction to return to menu
-    DrawString(WIDTH/2 - 140, HEIGHT/2 - 50, "Press R to return to menu", colors[BLACK]);
+    DrawString(WIDTH / 2 - 100, HEIGHT / 2 + 10, scoreStr, colors[BLACK]);
 }
 
-void GameController::drawWinScreen() {
-    // Draw semi-transparent overlay
+void GameController::drawWinScreen() const
+{
+    // Full white background
+    DrawRectangle(0, 0, WIDTH, HEIGHT, colors[WHITE]);
+
+    // Green banner for "CONGRATULATIONS!"
+    DrawRoundRect(WIDTH / 2 - 240, HEIGHT / 2 + 30, 480, 60, colors[GREEN], 15);
+    DrawString(WIDTH / 2 - 120, HEIGHT / 2 + 50, "CONGRATULATIONS!", colors[WHITE]);
+
+    // YOU WIN message
+    DrawRoundRect(WIDTH / 2 - 160, HEIGHT / 2 - 20, 320, 50, colors[FOREST_GREEN], 10);
+    DrawString(WIDTH / 2 - 60, HEIGHT / 2, "YOU WIN!", colors[WHITE]);
+
+    // Final Score Box
+    DrawRoundRect(WIDTH / 2 - 180, HEIGHT / 2 - 90, 360, 40, colors[LIGHT_GRAY], 10);
+    string scoreStr = "Final Score: " + to_string(playerCar.getScore());
+    DrawString(WIDTH / 2 - 100, HEIGHT / 2 - 70, scoreStr, colors[BLACK]);
+}
+
+void GameController::drawNameInputScreen() const
+{
+    // Draw a gradient background
+    DrawRectangle(0, 0, WIDTH, HEIGHT, colors[ALICE_BLUE]);
+    for (int i = 0; i < HEIGHT; i += 2) {
+        float alpha = 1.0f - (i / (float)HEIGHT) * 0.3f;
+        float color[3] = {
+            colors[ROYAL_BLUE][0] * alpha,
+            colors[ROYAL_BLUE][1] * alpha,
+            colors[ROYAL_BLUE][2] * alpha
+        };
+        DrawLine(0, i, WIDTH, i, 1, color);
+    }
+
+    // Draw a rounded rectangle panel
+    DrawRoundRect(WIDTH/2 - 250, HEIGHT/2 - 150, 500, 300, colors[WHITE], 15.0);
+    DrawRoundRect(WIDTH/2 - 255, HEIGHT/2 - 155, 510, 310, colors[LIGHT_BLUE], 18.0);
+
+    // Draw header
+    float headerColor[3] = {0.2, 0.3, 0.6}; // Dark blue
+    DrawString(WIDTH/2 - 180, HEIGHT/2 + 80, "PLAYER REGISTRATION", headerColor);
+
+    // Draw question text with better styling
+    DrawString(WIDTH/2 - 180, HEIGHT/2 + 20, "WHAT'S YOUR NAME:", colors[SLATE_BLUE]);
+
+    // Draw input text with shadow effect
+    DrawString(WIDTH/2 - 177, HEIGHT/2 - 17, playerCar.getName(), colors[GAINSBORO]);
+    DrawString(WIDTH/2 - 180, HEIGHT/2 - 20, playerCar.getName(), colors[DARK_BLUE]);
+
+    // Draw an underline with gradient effect
+    float lineColors[3][3] = {
+        {colors[HOT_PINK][0], colors[HOT_PINK][1], colors[HOT_PINK][2]},
+        {colors[DEEP_PINK][0], colors[DEEP_PINK][1], colors[DEEP_PINK][2]},
+        {colors[VIOLET][0], colors[VIOLET][1], colors[VIOLET][2]}
+    };
+
+    for (int i = 0; i < 3; i++) {
+        DrawLine(WIDTH/2 - 180, HEIGHT/2 - 10 + i, WIDTH/2 + 120, HEIGHT/2 - 10 + i, 1, lineColors[i]);
+    }
+
+    // Add a blinking cursor if name input is active
+    static int blinkCounter = 0;
+    blinkCounter = (blinkCounter + 1) % 60; // Blink every 60 frames
+    if (blinkCounter < 30) 
+    { // Show cursor for half the time
+        int textWidth = playerCar.getName().length() * 12; // Approximate width based on character count
+        DrawLine(WIDTH/2 - 180 + textWidth, HEIGHT/2 - 20, WIDTH/2 - 180 + textWidth, HEIGHT/2 - 40, 2, colors[DEEP_PINK]);
+    }
+
+    // Draw instruction text
+    DrawRoundRect(WIDTH/2 - 120, HEIGHT/2 - 100, 240, 40, colors[LAVENDER], 8.0);
+    DrawString(WIDTH/2 - 110, HEIGHT/2 - 80, "ENTER", colors[DARK_BLUE]);
+
+    // Draw decorative elements
+    DrawCircle(WIDTH/2 - 240, HEIGHT/2 - 140, 10, colors[LIGHT_CORAL]);
+    DrawCircle(WIDTH/2 + 240, HEIGHT/2 - 140, 10, colors[LIGHT_CORAL]);
+    DrawCircle(WIDTH/2 - 240, HEIGHT/2 + 130, 10, colors[LIGHT_CORAL]);
+    DrawCircle(WIDTH/2 + 240, HEIGHT/2 + 130, 10, colors[LIGHT_CORAL]);
+
+    // Draw a small car icon
+    int carX = WIDTH/2 - 220;
+    int carY = HEIGHT/2 + 20;
+    // Car body
+    DrawRoundRect(carX, carY, 40, 20, colors[CORAL], 5.0);
+    // Car top
+    DrawRoundRect(carX + 10, carY - 10, 20, 15, colors[CORAL], 3.0);
+    // Wheels
+    DrawCircle(carX + 10, carY + 25, 5, colors[BLACK]);
+    DrawCircle(carX + 30, carY + 25, 5, colors[BLACK]);
+}
+
+void GameController::drawLeaderBoard() const
+{
     DrawRectangle(0, 0, WIDTH, HEIGHT, colors[WHITE]);
     
-    // Draw win text
-    DrawString(WIDTH/2 - 120, HEIGHT/2 + 50, "CONGRATULATIONS!", colors[GREEN]);
-    DrawString(WIDTH/2 - 80, HEIGHT/2, "YOU WIN!", colors[GREEN]);
-    
-    // Show final score
-    string scoreStr = "Final Score: " + to_string(playerCar.getScore());
-    DrawString(WIDTH/2 - 100, HEIGHT/2 - 50, scoreStr, colors[BLACK]);
-    
-    // Show instruction to return to menu
-    DrawString(WIDTH/2 - 140, HEIGHT/2 - 100, "Press R to return to menu", colors[BLACK]);
+    leaderboard.showLeaderboard();
 }

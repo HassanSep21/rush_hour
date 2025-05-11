@@ -35,6 +35,7 @@ public:
 	void jobCompleted();
 	bool isHolding() const;
 	void setHolding(bool state);
+	void setRole(int role);
 };
 
 #endif

@@ -16,5 +16,22 @@ void NPC::setSpeedDelay(int delay) { speedDelay = delay; }
 
 void NPC::draw() const
 {
-    DrawSquare(x + 5, y + 5, 30, colors[INDIGO]);
+    // Tyres
+    DrawSquare(x + 5, y, 10, colors[BLACK]);
+    DrawSquare(x + 25, y, 10, colors[BLACK]);
+
+    // Body
+    DrawRectangle(x + 5, y + 5, 30, 15, colors[VIOLET]);
+
+    // Wind Screen
+    DrawRectangle(x + 10, y + 15, 20, 15, colors[VIOLET]);
+    DrawRectangle(x + 12, y + 20, 16, 8, colors[WHITE]);
+
+    // Lights
+    DrawCircle(x + 10, y + 13, 3, colors[WHITE]);
+    DrawCircle(x + 28, y + 13, 3, colors[WHITE]);
+
+    // Grill
+    DrawLine(x + 15, y + 13, x + 23, y + 13, 1, colors[BLACK]);
+    DrawLine(x + 15, y + 11, x + 23, y + 11, 1, colors[BLACK]);
 }

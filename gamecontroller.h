@@ -1,78 +1,67 @@
-#ifndef GAMECONTROLLER_H_
-#define GAMECONTROLLER_H_
+#ifndef GAME_H
+#define GAME_H
 
 #include "util.h"
+
 #include "board.h"
-#include "player.h"
 #include "car.h"
+#include "fuelstation.h"
+#include "leaderboard.h"
 #include "npc.h"
 #include "obstacle.h"
-#include "passenger.h"
 #include "package.h"
-#include "fuelstation.h"
+#include "passenger.h"
+#include "player.h"
 #include "rolechangestation.h"
 
-// Game states
-enum class GameState {
-    MENU,
-    PLAYING,
-    PAUSED,
-    WIN,
-    GAMEOVER
+struct GameState
+{
+	static const int GAME_MENU = 0;
+	static const int GAME_START = 1;
+	static const int GAME_OVER= 2;
+	static const int GAME_WIN = 3;
+	static const int GAME_INPUT_NAME = 4;
+	static const int GAME_SHOW_LEADERBOARD = 5;
 };
 
-class GameController {
+class GameController
+{
 private:
-    // Game objects
-    Player playerCar;
-    Board board;
+	Player playerCar;
+	Board board;
+
+	int gameState;
+	float gameTime;
+	int menuSelection;
+
+	Leaderboard leaderboard;
     
-    // Game state
-    GameState state;
-    float gameTime;
-    
-    // Menu selection
-    int menuSelection;
-    
-    // Random seed
-    bool boardInitialized;
-    
-    // Private methods
-    void updateNPCs();
-    void checkGameStatus();
-    void handleFuelRefill();
+	void handleFuelRefill();
     void handleRoleChange();
     void handlePickupAndDropoff();
-    
+
 public:
-    // Constructor
+    static Board makeRandomBoard();
+
     GameController();
-    
-    // Game state management
-    void initializeGame(int role);
+
+    void render() const;
+    void checkGameStatus();
+    int getGameState() const;
+
+    void handleNonPrintableKeys(int key);
+    void handlePrintableKeys(char key);
+
     void update();
-    void togglePause();
-    void resetGame();
-    
-    // Input handling
-    void handleKeyPress(unsigned char key);
-    void handleSpecialKeyPress(int key);
-    
-    // Drawing methods
-    void drawGame();
-    void drawMenu();
-    void drawPauseScreen();
-    void drawGameOverScreen();
-    void drawWinScreen();
-    
-    // Debug methods
-    void debugPosition();
-    
-    // Getters
-    GameState getState() const { return state; }
-    Player& getPlayer() { return playerCar; }
-    Board& getBoard() { return board; }
-    float getGameTime() const { return gameTime; }
+    void updateTime();
+    void updateNPCs();
+
+    void drawMenu() const;
+    void drawGame() const;
+    void drawGameOverScreen() const;
+    void drawWinScreen() const;
+    void drawNameInputScreen() const;
+    void drawLeaderBoard() const;
 };
 
 #endif

@@ -12,6 +12,8 @@
 #include "util.h"
 #include <iostream>
 #include <string>
+#include <fstream>
+#include <cstring>
 #include <cmath>
 
 // seed the random numbers generator by current time (see the documentation of srand for further help)...
@@ -26,6 +28,8 @@ RandomSeeder randSeed;
 #include "board.h"
 #include "car.h"
 #include "fuelstation.h"
+#include "gamecontroller.h"
+#include "leaderboard.h"
 #include "npc.h"
 #include "obstacle.h"
 #include "package.h"
@@ -34,322 +38,6 @@ RandomSeeder randSeed;
 #include "rolechangestation.h"
 
 using namespace std;
-/*====================================================================================================*/
-
-/*=========================================*//* My Class *//*=========================================*/
-
-struct GameStates
-{
-	static const int GAME_MENU = 0;
-	static const int GAME_START = 1;
-	static const int GAME_PAUSE = 2;
-	static const int GAME_WIN = 3;
-	static const int GAME_OVER = 4;
-	static const int GAME_INPUT_NAME = 5;
-};
-
-class GameController
-{
-private:
-	Player playerCar;
-	Board board;
-
-	int gameState;
-	float gameTime;
-
-	int menuSelection;
-
-public:
-	static Board makeRandomBoard() 
-	{
-		int randFuel = 2 + rand() % 2;
-		int randObs = 4 + rand() % 3;
-		int randPass = 2 + rand() % 3;
-		int randPack = 2 + rand() % 2;
-		return Board(randFuel, randObs, randPass, randPack);
-	}
-
-	GameController() : gameState(GameStates::GAME_MENU), gameTime(GAME_TIME),
-					menuSelection(0), board(makeRandomBoard()) {}
-
-	int getMenuSelection() const { return menuSelection; }
-
-	void handleNonPrintableKeys(int key)
-	{
-		int oldX = playerCar.getX();
-		int oldY = playerCar.getY();
-		int newX = oldX;
-		int newY = oldY;
-	
-		if 		(key == GLUT_KEY_LEFT)  newX -= CELL_SIZE;
-		else if (key == GLUT_KEY_RIGHT) newX += CELL_SIZE;
-		else if (key == GLUT_KEY_UP)    newY += CELL_SIZE;
-		else if (key == GLUT_KEY_DOWN)  newY -= CELL_SIZE;
-	
-		// Convert to grid indices
-		int i = (GRID_END_Y - newY) / CELL_SIZE;
-		int j = (newX - GRID_START_X) / CELL_SIZE;
-	
-		// Check collision
-		bool valid = board.isDrivable(i, j);
-		for (int k = 0; k < board.getObstacleCount() && valid; k++)
-			if (board.getObstacles(k).overlaps(newX, newY))
-				valid = false;
-	
-		if (valid)
-		{
-			playerCar.setX(newX);
-			playerCar.setY(newY);
-	
-			// Running Over Passenger Penelty
-			for (int i = 0; i < board.getPassengerCount(); i++)
-				if (playerCar.isHolding() && (board.getPassenger(i).getX() == playerCar.getX() && 
-											  board.getPassenger(i).getY() == playerCar.getY()))
-					playerCar.updateScore(-5);
-			
-			// Running Over Package Penelty		
-			for (int i = 0; i < board.getPackageCount(); i++)
-				if (playerCar.isHolding() && (board.getPackage(i).getX() == playerCar.getX() && 
-											board.getPackage(i).getY() == playerCar.getY()))
-					playerCar.updateScore(-8);
-	
-			// If YOU Hit An NPC Car Penelty
-			for (int i = 0; i < board.getNpcCount(); i++)
-				if (playerCar.getX() == board.getNpc(i).getX() && playerCar.getY() == board.getNpc(i).getY())
-					playerCar.updateScore(playerCar.getRole() == PlayerRoles::TAXI ? -3 : -5);
-		}
-		else
-		{
-			playerCar.updateScore(playerCar.getRole() == PlayerRoles::TAXI ? -2 : -4);
-		}
-	}
-	void handlePrintableKeys(unsigned char key)
-	{
-		if (key == 27)
-		{
-			exit(1); // exit the program when escape key is pressed.
-		}
-	
-		if (key == 'f' || key == 'F')
-		{
-			for (int i = 0; i < board.getFuelStationCount(); i++)
-			{
-				if (board.getFuelStation(i).overlaps(playerCar.getX(), playerCar.getY()))
-					board.getFuelStation(i).reFuel(playerCar);
-			}
-		}
-	
-		if (key == 'p' || key == 'P')
-		{
-			if (board.getRoleChangeStation().overlaps(playerCar.getX(), playerCar.getY()))
-				board.getRoleChangeStation().changeRole(playerCar);
-		}
-	
-		if (key == ' ')
-		{
-			if (playerCar.getRole() == PlayerRoles::TAXI)
-			{
-				for (int i = 0; i < board.getPassengerCount(); i++)
-				{
-					Passenger &p = board.getPassenger(i);
-					if (!playerCar.isHolding() && !p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
-					{
-						p.setPickedUp(true);
-						playerCar.setHolding(true);
-						break;
-					}
-	
-					if (p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
-					{
-						p.setReached(true);
-						playerCar.updateScore(10);
-						playerCar.updateCash(p.getFare());
-						playerCar.jobCompleted();
-	
-						board.setRandomPos(p);
-					}
-				}
-			}
-			else if (playerCar.getRole() == PlayerRoles::DELIVERY)
-			{
-				for (int i = 0; i < board.getPackageCount(); i++)
-				{
-					Package &p = board.getPackage(i);
-					if (!playerCar.isHolding() && !p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
-					{
-						p.setPickedUp(true);
-						playerCar.setHolding(true);
-						break;
-					}
-	
-					if (p.isPickedUp() && p.overlaps(playerCar.getX(), playerCar.getY())) 
-					{
-						p.setDroppedOff(true);
-						playerCar.updateScore(20);
-						playerCar.updateCash(p.getFee());
-						playerCar.jobCompleted();
-	
-						board.setRandomPos(p);
-					}
-				}
-			}
-	
-			if (playerCar.getJobsCompleted() != 0 && playerCar.getJobsCompleted() % 2 == 0)
-			{
-				NPC::setSpeedDelay(NPC::getSpeedDelay() - 1);
-				board.increaseNpcs();
-			}
-		}
-	}
-	
-	void updateTime() { gameTime -= 0.1; }
-	void updateNPCs()
-	{
-		for (int i = 0; i < board.getNpcCount(); i++)
-		{
-			board.getNpc(i).setFrameCounter(board.getNpc(i).getFrameCounter() + 1);
-			if (board.getNpc(i).getFrameCounter() >= board.getNpc(i).getSpeedDelay())
-			{
-				board.getNpc(i).setFrameCounter(0);
-
-				int attemps = 0;
-				const int MAX_ATTEMPTS = 20;
-				while (attemps++ < MAX_ATTEMPTS)
-				{
-					int newY = board.getNpc(i).getY();
-					int newX = board.getNpc(i).getX();
-			
-					int randDir = rand() % 4;
-					switch (randDir)
-					{
-						// Left
-						case 0: newX -= CELL_SIZE; break; 
-						// Right
-						case 1: newY += CELL_SIZE; break;
-						// Up
-						case 2: newY -= CELL_SIZE; break;
-						// Down
-						case 3: newY += CELL_SIZE; break;
-					}
-
-					// Convert to grid indices
-					int y = (GRID_END_Y - newY) / CELL_SIZE;
-					int x = (newX - GRID_START_X) / CELL_SIZE;
-
-					// Check collision
-					bool valid = board.isDrivable(y, x);
-					for (int k = 0; k < board.getObstacleCount() && valid; k++)
-						if (board.getObstacles(k).overlaps(newX, newY))
-							valid = false;
-
-					if (valid)
-					{
-						board.getNpc(i).setX(newX);
-						board.getNpc(i).setY(newY);
-						break;
-					}	
-				}
-			}
-		}
-	}
-
-	void drawMenu() const
-	{
-		// Draw title
-		DrawString(WIDTH/2 - 100, HEIGHT - 200, "RUSH HOUR", colors[RED]);
-
-		// Draw options
-		DrawString(WIDTH/2 - 150, HEIGHT/2 + 50, "1. Play as Taxi Driver", colors[ORANGE]);
-		DrawString(WIDTH/2 - 150, HEIGHT/2, "2. Play as Delivery Driver", colors[BLUE]);
-		DrawString(WIDTH/2 - 150, HEIGHT/2 - 50, "3. Random Role", colors[GREEN]);
-	}
-	void drawGame() const
-	{
-		int minutes = int(gameTime) / 60;
-		int seconds = int(gameTime) % 60;
-		string timeStr = "Time: " + to_string(minutes) + ":" + (seconds < 10 ? "0" : "") + to_string(seconds);
-	
-		string scoreStr = "Score: " + to_string(playerCar.getScore());
-	
-		ostringstream stream;
-		stream << fixed << setprecision(2) << playerCar.getCash();
-		string cashStr = "Cash: " + stream.str() + "$";
-	
-		string roleStr = string(playerCar.getRole() == PlayerRoles::TAXI ? "Taxi" : "Delivery") + " Driver";
-		
-		DrawString(50, 950, timeStr, colors[BLACK]);
-		DrawString(550, 950, scoreStr, colors[BLACK]);
-		DrawString(1000, 950, cashStr, colors[BLACK]);
-		DrawString(500, 40, "Role: ", colors[BLACK]);
-		DrawString(560, 40, roleStr, colors[(playerCar.getRole() == PlayerRoles::TAXI ? ORANGE : BLUE)]);
-	
-		// Fuel Indicator
-		float *fuelColor;
-	
-		if (playerCar.getFuel()  >= 160)
-			fuelColor = colors[GREEN];
-		else if (playerCar.getFuel()  >= 100)
-			fuelColor = colors[YELLOW];
-		else if (playerCar.getFuel()  >= 60)
-			fuelColor = colors[ORANGE];
-		else
-			fuelColor = colors[RED];
-	
-		DrawRoundRect(66, 446, 58, 208, colors[BLACK], 5);
-		DrawRoundRect(68, 448, 54, 204, colors[WHITE], 5);
-		DrawRoundRect(70, 450, 50, 200 * (playerCar.getFuel() / float(MAX_FUEL)), fuelColor, 5);
-	
-		// Testing Objects
-		board.draw(playerCar);
-		playerCar.draw();
-	}
-	void drawPauseScreen() const
-	{
-		DrawRectangle(0, 0, WIDTH, HEIGHT, colors[WHITE]);
-		
-		// Draw pause text
-		DrawString(WIDTH/2 - 80, HEIGHT/2 + 50, "GAME PAUSED", colors[RED]);
-		DrawString(WIDTH/2 - 120, HEIGHT/2, "Press ESC to continue", colors[BLACK]);
-		DrawString(WIDTH/2 - 120, HEIGHT/2 - 50, "Press R to return to menu", colors[BLACK]);
-	}
-	void drawGameOverScreen() const
-	{
-		DrawRectangle(0, 0, WIDTH, HEIGHT, colors[WHITE]);
-		
-		// Draw game over text
-		DrawString(WIDTH/2 - 80, HEIGHT/2 + 50, "GAME OVER", colors[RED]);
-		
-		// Show final score
-		string scoreStr = "Final Score: " + to_string(playerCar.getScore());
-		DrawString(WIDTH/2 - 100, HEIGHT/2, scoreStr, colors[BLACK]);
-		
-		// Show instruction to return to menu
-		DrawString(WIDTH/2 - 140, HEIGHT/2 - 50, "Press R to return to menu", colors[BLACK]);
-	}
-	void drawWinScreen() const
-	{
-		DrawRectangle(0, 0, WIDTH, HEIGHT, colors[WHITE]);
-		
-		// Draw win text
-		DrawString(WIDTH/2 - 120, HEIGHT/2 + 50, "CONGRATULATIONS!", colors[GREEN]);
-		DrawString(WIDTH/2 - 80, HEIGHT/2, "YOU WIN!", colors[GREEN]);
-		
-		// Show final score
-		string scoreStr = "Final Score: " + to_string(playerCar.getScore());
-		DrawString(WIDTH/2 - 100, HEIGHT/2 - 50, scoreStr, colors[BLACK]);
-		
-		// Show instruction to return to menu
-		DrawString(WIDTH/2 - 140, HEIGHT/2 - 100, "Press R to return to menu", colors[BLACK]);
-	}
-	void drawNameInputScreen() const
-	{
-		DrawRectangle(0, 0, WIDTH, HEIGHT, colors[WHITE]);
-		
-		// Draw Question text
-		DrawString(WIDTH/2 - 80, HEIGHT/2 + 50, "WHAT'S YOUR NAME: ", colors[BLACK]);
-		DrawString(WIDTH/2 - 120, HEIGHT/2, "Press ENTER to save", colors[BLACK]);
-	}
-};
 
 /*=====================================================================================================*/
 
@@ -383,15 +71,7 @@ void GameDisplay()/**/
 	glClearColor(1/*Red Component*/, 1/*Green Component*/, 1/*Blue Component*/, 0/*Alpha component*/); // Red==Green==Blue==1 --> White Colour
 	glClear (GL_COLOR_BUFFER_BIT); //Update the colors
 
-	switch (game.getMenuSelection())
-	{
-		case GameStates::GAME_MENU: game.drawMenu(); break;
-		case GameStates::GAME_START: game.drawGame(); break;
-		case GameStates::GAME_PAUSE: game.drawPauseScreen(); break;
-		case GameStates::GAME_WIN: game.drawWinScreen(); break;
-		case GameStates::GAME_OVER: game.drawGameOverScreen(); break;
-		case GameStates::GAME_INPUT_NAME: game.drawNameInputScreen(); break;
-	}
+	game.render();
 	
 	glutSwapBuffers(); // do not modify this line..
 }
@@ -435,11 +115,7 @@ void PrintableKeys(unsigned char key, int x, int y)
  * */
 void Timer(int m)
 {
-	// Game Timer
-	game.updateTime();
-
-	// NPC Movement
-	game.updateNPCs();
+	game.update();
 
 	glutPostRedisplay();
 
