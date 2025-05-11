@@ -20,297 +20,24 @@ struct RandomSeeder
 };
 RandomSeeder randSeed;
 
-/*=======================================*//* MY HEADERS *//*=======================================*/
+/*========================================*//* MY HEADERS *//*=======================================*/
 
+#include "board.h"
 #include "car.h"
-#include "passenger.h"
-#include "package.h"
 #include "fuelstation.h"
-#include "rolechangestation.h"
+#include "npc.h"
 #include "obstacle.h"
+#include "package.h"
+#include "passenger.h"
 #include "player.h"
+#include "rolechangestation.h"
 
 using namespace std;
+/*====================================================================================================*/
 
-/*=======================================*//* My Class *//*=======================================*/
+/*=========================================*//* My Class *//*=========================================*/
 
-struct BoardObjects
-{
-	static const int ROAD = 0;
-	static const int BUILDING = 1;
-	static const int FUEL_STATION = 2;
-	static const int ROLE_CHANGE_STATION = 3;
-	static const int OBSTACLE = 4;
-};
-
-class Board
-{
-private:
-	static const int SIZE = 20;
-	int grid[SIZE][SIZE];
-
-	RoleChangeStation roleChangeStation;
-
-	FuelStation *fuelStations;
-	int fuelStationCount;
-
-	Obstacle *obstacles;
-	int obstacleCount;
-
-	Passenger *passengers;
-	int passengerCount;
-
-	Package *packages;
-	int packageCount;
-
-public:
-	Board(int fuelStationCount = 2, int obstacleCount = 4, int passengerCount = 2, int packageCount = 2) : 
-			fuelStationCount(fuelStationCount), obstacleCount(obstacleCount), roleChangeStation(GRID_START_X, GRID_START_Y),
-			passengerCount(passengerCount), packageCount(passengerCount)
-	{
-		// Grid
-		generateGrid();
-
-		// Fuel Sations
-		generateFuelStations();
-		
-		// Obstacles
-		generateObstacles();
-
-		// Passengers
-		generatePassengers();
-
-		// Packages
-		generatePackages();
-	}
-
-	~Board()
-	{
-		// Delete Fuel Station
-		delete[] fuelStations;
-
-		// Delete Obstacles
-		delete[] obstacles;
-
-		// Delete Passengers
-		delete[] passengers;
-
-		// Delete Packages
-		delete[] packages;
-	}
-
-	int getFuelStationCount() const { return fuelStationCount; }
-	FuelStation getFuelStation(int i) { return fuelStations[i]; }
-
-	int getObstacleCount() const { return obstacleCount; }
-	Obstacle getObstacles(int i) { return obstacles[i]; }
-
-	int getPassengerCount() const { return passengerCount; }
-	Passenger &getPassenger(int i) { return passengers[i]; }
-
-	int getPackageCount() const { return packageCount; }
-	Package &getPackage(int i) { return packages[i]; }
-
-	RoleChangeStation getRolecChangeStation() { return roleChangeStation; }
-
-	void generateFuelStations()
-	{
-		fuelStations = new FuelStation[fuelStationCount];
-
-		int index = 0;
-		while (index < fuelStationCount)
-		{
-			int randX = rand() % 20;
-			int randY = rand() % 20;
-
-			if (isRoad(randY, randX) && !(randX == 0 && randY == 0))
-			{
-				fuelStations[index++] = FuelStation(GRID_START_X + CELL_SIZE * randX, GRID_END_Y - CELL_SIZE * randY);
-				grid[randY][randX] = BoardObjects::FUEL_STATION;
-			}
-		}
-	}
-	void generateObstacles()
-	{
-		obstacles = new Obstacle[obstacleCount];
-
-		int index = 0;
-		while (index < obstacleCount)
-		{
-			int randX = rand() % 20;
-			int randY = rand() % 20;
-
-			if (isRoad(randY, randX) && !(randX == 0 && randY == 0))
-			{
-				obstacles[index++] = Obstacle(GRID_START_X + CELL_SIZE * randX, GRID_END_Y - CELL_SIZE * randY, rand() % 2);
-				grid[randY][randX] = BoardObjects::OBSTACLE;
-			}
-		}
-	}
-	void generatePassengers()
-	{
-		passengers = new Passenger[passengerCount];
-
-		int index = 0;
-		while (index < passengerCount)
-		{
-			int randX = rand() % 20;
-			int randY = rand() % 20;
-			int randDesX = rand() % 20;
-			int randDesY = rand() % 20;
-
-			if (isRoad(randY, randX) && isRoad(randDesY, randDesX) && !(randX == 0 && randY == 0) && !(randX == randDesX && randY == randDesY))
-				passengers[index++] = Passenger(GRID_START_X + CELL_SIZE * randX, GRID_END_Y - CELL_SIZE * randY,
-												GRID_START_X + CELL_SIZE * randDesX, GRID_END_Y - CELL_SIZE * randDesY);
-		}
-	}
-
-	void generatePackages()
-	{
-		packages = new Package[packageCount];
-
-		int index = 0;
-		while (index < packageCount)
-		{
-			int randX = rand() % 20;
-			int randY = rand() % 20;
-			int randDesX = rand() % 20;
-			int randDesY = rand() % 20;
-
-			if (isRoad(randY, randX) && isRoad(randDesY, randDesX) && !(randX == 0 && randY == 0) && !(randX == randDesX && randY == randDesY))
-				packages[index++] = Package(GRID_START_X + CELL_SIZE * randX, GRID_END_Y - CELL_SIZE * randY,
-											GRID_START_X + CELL_SIZE * randDesX, GRID_END_Y - CELL_SIZE * randDesY);
-		}
-	}
-
-	void setRandomPos(Passenger &p)
-	{
-		while (true)
-		{
-			int randX = rand() % 20;
-			int randY = rand() % 20;
-			int randDesX = rand() % 20;
-			int randDesY = rand() % 20;
-
-			if (isRoad(randY, randX) && isRoad(randDesY, randDesX) && !(randX == 0 && randY == 0) && !(randX == randDesX && randY == randDesY))
-			{
-				p = Passenger(GRID_START_X + CELL_SIZE * randX, GRID_END_Y - CELL_SIZE * randY,
-								GRID_START_X + CELL_SIZE * randDesX, GRID_END_Y - CELL_SIZE * randDesY);
-				break;
-			}
-		}
-	}
-
-	void setRandomPos(Package &p)
-	{
-		while (true)
-		{
-			int randX = rand() % 20;
-			int randY = rand() % 20;
-			int randDesX = rand() % 20;
-			int randDesY = rand() % 20;
-
-			if (isRoad(randY, randX) && isRoad(randDesY, randDesX) && !(randX == 0 && randY == 0) && !(randX == randDesX && randY == randDesY))
-			{
-				p = Package(GRID_START_X + CELL_SIZE * randX, GRID_END_Y - CELL_SIZE * randY,
-							GRID_START_X + CELL_SIZE * randDesX, GRID_END_Y - CELL_SIZE * randDesY);
-				break;
-			}
-		}
-		
-	}
-
-	bool isRoad(int i, int j) const { return i >= 0 && i < SIZE && j >= 0 && j < SIZE && grid[i][j] == BoardObjects::ROAD; }
-	bool isDrivable(int i, int j) const 
-	{ 
-		return i >= 0 && i < SIZE && j >= 0 && j < SIZE && (grid[i][j] == BoardObjects::ROAD || 
-															grid[i][j] == BoardObjects::FUEL_STATION || 
-															grid[i][j] == BoardObjects::ROLE_CHANGE_STATION); 
-	}
-
-	void generateGrid()
-	{
-		int temp[20][20] = 
-		{
-			{0,0,0,0,1,1,1,0,0,1,1,0,0,0,1,1,0,0,0,0},
-			{0,1,1,0,1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,0},
-			{0,1,0,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,1,0},
-			{0,1,0,1,1,0,1,0,1,0,1,1,1,0,1,1,1,0,1,0},
-			{0,1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,1,0},
-			{0,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,0},
-			{0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,1,0,1,0},
-			{1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,0,1,0},
-			{0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0},
-			{1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0},
-			{0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0},
-			{0,1,1,0,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,0},
-			{0,1,0,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,1,0},
-			{0,1,0,0,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1,0},
-			{0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1,0},
-			{0,1,0,0,1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,0},
-			{0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0},
-			{1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0},
-			{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-			{0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0}
-		};
-
-		for (int i = 0; i < SIZE; i++)
-			for (int j = 0; j < SIZE; j++)
-				grid[i][j] = temp[i][j];
-
-		int count = 0;
-		while (count < 80)
-		{
-			int randX = rand() % 20;
-			int randY = rand() % 20;
-
-			if (grid[randX][randY] == BoardObjects::BUILDING)
-			{
-				grid[randX][randY] = BoardObjects::ROAD;
-				count++;
-			}
-		}
-	}
-
-	void draw(Player &playerCar) const
-	{
-		// Background
-		DrawSquare(GRID_START_X, GRID_START_Y, 800, colors[GRAY]);
-
-		// Buildings
-		for (int i = 0; i < SIZE; i++)
-			for (int j = 0; j < SIZE; j++)
-				if (grid[i][j] == BoardObjects::BUILDING)
-					DrawSquare(GRID_START_X + CELL_SIZE * j, GRID_END_Y - CELL_SIZE * i, CELL_SIZE, colors[BLACK]);
-
-		// Fuel Stations
-		for (int i = 0; i < fuelStationCount; i++)
-			fuelStations[i].draw();
-
-		// Obstactes
-		for (int i = 0; i < obstacleCount; i++)
-			obstacles[i].draw();
-
-		// Role Change Station
-		roleChangeStation.draw();
-
-		// Passengers & Packages
-		if (playerCar.getRole() == PlayerRoles::TAXI)
-			for (int i = 0; i < passengerCount; i++)
-				passengers[i].draw();
-		else if (playerCar.getRole() == PlayerRoles::DELIVERY)
-			for (int i = 0; i < packageCount; i++)
-				packages[i].draw();
-
-		// Grid Lines
-		for (int i = 0; i <= SIZE; i++)
-		{
-			DrawLine(200, 900 - 40 * i, 1000, 900 - 40 * i, 2, colors[BLACK]);
-			DrawLine(200 + 40 * i, 900, 200 + 40 * i, 100, 2, colors[BLACK]);
-		}
-	}
-
-};
+/*=====================================================================================================*/
 
 float gameTime = 180;
 
@@ -338,7 +65,7 @@ int randPack = 2 + rand() % 2;
 
 Board board(randFuel, randObs, randPass, randPack);
 
-/*=======================================*//* Class Objects *//*=======================================*/
+/*====================================================================================================*/
 
 /*
  * Main Canvas drawing function.
@@ -441,6 +168,11 @@ void NonPrintableKeys(int key, int x, int y)
 			if (playerCar.isHolding() && (board.getPackage(i).getX() == playerCar.getX() && 
 										board.getPackage(i).getY() == playerCar.getY()))
 				playerCar.updateScore(-8);
+
+		// If YOU Hit An NPC Car Penelty
+		for (int i = 0; i < board.getNpcCOunt(); i++)
+			if (playerCar.getX() == board.getNpc(i).getX() && playerCar.getY() == board.getNpc(i).getY())
+				playerCar.updateScore(playerCar.getRole() == PlayerRoles::TAXI ? -3 : -5);
 	}
 	else
 	{
@@ -528,6 +260,12 @@ void PrintableKeys(unsigned char key, int x, int y)
 				}
 			}
 		}
+
+		if (playerCar.getjobsCompleted() != 0 && playerCar.getjobsCompleted() % 2 == 0)
+		{
+			NPC::setSpeedDelay(NPC::getSpeedDelay() - 1);
+			board.increaseNpcs();
+		}
 	}
 
 	glutPostRedisplay();
@@ -542,8 +280,55 @@ void PrintableKeys(unsigned char key, int x, int y)
  * */
 void Timer(int m)
 {
-	// implement your functionality here
+	// Game Timer
 	gameTime -= 0.1;
+
+	// NPC Movement
+	for (int i = 0; i < board.getNpcCOunt(); i++)
+	{
+		board.getNpc(i).setFrameCounter(board.getNpc(i).getFrameCounter() + 1);
+		if (board.getNpc(i).getFrameCounter() >= board.getNpc(i).getSpeedDelay())
+		{
+			board.getNpc(i).setFrameCounter(0);
+
+			while (true)
+			{
+				int newY = board.getNpc(i).getY();
+				int newX = board.getNpc(i).getX();
+		
+				int randDir = rand() % 4;
+				switch (randDir)
+				{
+					// Left
+					case 0: newX -= CELL_SIZE; break; 
+					// Right
+					case 1: newY += CELL_SIZE; break;
+					// Up
+					case 2: newY -= CELL_SIZE; break;
+					// Down
+					case 3: newY += CELL_SIZE; break;
+				}
+
+				// Convert to grid indices
+				int y = (GRID_END_Y - newY) / CELL_SIZE;
+				int x = (newX - GRID_START_X) / CELL_SIZE;
+
+				// Check collision
+				bool valid = board.isDrivable(y, x);
+				for (int k = 0; k < board.getObstacleCount() && valid; k++)
+					if (board.getObstacles(k).overlaps(newX, newY))
+						valid = false;
+
+				if (valid)
+				{
+					board.getNpc(i).setX(newX);
+					board.getNpc(i).setY(newY);
+					break;
+				}	
+			}
+		}
+	}
+
 	glutPostRedisplay();
 
 	// once again we tell the library to call our Timer function after next 1000/FPS

@@ -16,14 +16,14 @@ public:
 
 	int getX() const;  	 
 	int getY() const; 
-	void setX(int x);
-	void setY(int y);  	 
+	virtual void setX(int x);
+	virtual void setY(int y);  	 
 	int getFuel() const;	  	 
 	void setFuel(int fuel);   	 
 	float *getColor() const;      
 	void setColor(float *color);
 
-	void draw() const;
+	virtual void draw() const;
 };
 
 #endif // CAR_H
