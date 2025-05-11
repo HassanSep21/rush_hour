@@ -21,7 +21,7 @@ public:
 	int getY() const;	  
 	int getDesX() const;   
 	int getDesY() const;   
-	float getFair() const; 
+	float getFare() const; 
 
 	bool isPickedUp() const;
 

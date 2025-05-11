@@ -13,7 +13,7 @@ int Player::getRole() const { return role; }
 void Player::toggleRole() { this->role = role == PlayerRoles::TAXI ? PlayerRoles::DELIVERY : PlayerRoles::TAXI; }
 bool Player::isHolding() const { return holding; }
 void Player::setHolding(bool state) { holding = state; }
-int Player::getjobsCompleted() const { return jobsCompleted; }
+int Player::getJobsCompleted() const { return jobsCompleted; }
 void Player::jobCompleted() 
 { 
     jobsCompleted++;

@@ -2,7 +2,7 @@
 
 Board::Board(int fuelStationCount, int obstacleCount, int passengerCount, int packageCount, int npcCount) : 
         fuelStationCount(fuelStationCount), obstacleCount(obstacleCount), roleChangeStation(GRID_START_X, GRID_START_Y),
-        passengerCount(passengerCount), packageCount(passengerCount), npcCount(npcCount)
+        passengerCount(passengerCount), packageCount(packageCount), npcCount(npcCount)
 {
     // Grid
     generateGrid();
@@ -21,6 +21,41 @@ Board::Board(int fuelStationCount, int obstacleCount, int passengerCount, int pa
 
     // NPCs
     generateNpcs();
+}
+
+Board::Board(const Board &b) : 
+        fuelStationCount(b.fuelStationCount), obstacleCount(b.obstacleCount), roleChangeStation(GRID_START_X, GRID_START_Y),
+        passengerCount(b.passengerCount), packageCount(b.packageCount), npcCount(b.npcCount)
+{
+    // Copy Grid
+    for (int i = 0; i < SIZE; i++)
+        for (int j = 0; j < SIZE; j++)
+            grid[i][j] = b.grid[i][j];
+
+    // Copy Fuel Stations
+    fuelStations = new FuelStation[fuelStationCount];
+    for (int i = 0; i < fuelStationCount; i++)
+        fuelStations[i] = b.fuelStations[i];
+
+    // Copy Obstacles
+    obstacles = new Obstacle[obstacleCount];
+    for (int i = 0; i < obstacleCount; i++)
+        obstacles[i] = b.obstacles[i];
+
+    // Copy Passengers
+    passengers = new Passenger[passengerCount];
+    for (int i = 0; i < passengerCount; i++)
+        passengers[i] = b.passengers[i];
+
+    // Copy Packages
+    packages = new Package[packageCount];
+    for (int i = 0; i < packageCount; i++)
+        packages[i] = b.packages[i];
+
+    // Copy NPCs
+    npcs = new NPC[npcCount];
+    for (int i = 0; i < npcCount; i++)
+        npcs[i] = b.npcs[i];
 }
 
 Board::~Board()
@@ -53,10 +88,10 @@ Passenger &Board::getPassenger(int i) { return passengers[i]; }
 int Board::getPackageCount() const { return packageCount; }
 Package &Board::getPackage(int i) { return packages[i]; }
 
-int Board::getNpcCOunt() const { return npcCount; }
+int Board::getNpcCount() const { return npcCount; }
 NPC &Board::getNpc(int i) { return npcs[i]; }
 
-RoleChangeStation Board::getRolecChangeStation() { return roleChangeStation; }
+RoleChangeStation Board::getRoleChangeStation() { return roleChangeStation; }
 
 void Board::generateGrid()
 {
@@ -252,7 +287,7 @@ bool Board::isDrivable(int i, int j) const
                                                         grid[i][j] == BoardObjects::ROLE_CHANGE_STATION); 
 }
 
-void Board::draw(Player &playerCar) const
+void Board::draw(Player playerCar) const
 {
     // Background
     DrawSquare(GRID_START_X, GRID_START_Y, 800, colors[GRAY]);

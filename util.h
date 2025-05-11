@@ -41,6 +41,8 @@
 #define MAX_FUEL 200
 #define STARTING_CASH 100.0f
 
+#define GAME_TIME 180.0f
+
 /*=======================================*//* CONSTANTS *//*=======================================*/
 
 using namespace std;

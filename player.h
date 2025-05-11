@@ -31,7 +31,7 @@ public:
 	void updateScore(int points);
 	int getRole() const;   
 	void toggleRole();
-	int getjobsCompleted() const;
+	int getJobsCompleted() const;
 	void jobCompleted();
 	bool isHolding() const;
 	void setHolding(bool state);

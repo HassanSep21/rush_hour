@@ -45,6 +45,7 @@ private:
 
 public:
 	Board(int fuelStationCount = 2, int obstacleCount = 4, int passengerCount = 2, int packageCount = 2, int npcCount = 3);
+	Board(const Board &b);
 	~Board();
 
 	int getFuelStationCount() const;
@@ -59,12 +60,12 @@ public:
 	int getPackageCount() const;
 	Package &getPackage(int i);
 
-	int getNpcCOunt() const;
+	int getNpcCount() const;
 	NPC &getNpc(int i);
 
 	void increaseNpcs();
 
-	RoleChangeStation getRolecChangeStation();
+	RoleChangeStation getRoleChangeStation();
 
 	void generateFuelStations();
 	void generateObstacles();
@@ -80,7 +81,7 @@ public:
 
 	void generateGrid();
 
-	void draw(Player &playerCar) const;
+	void draw(Player playerCar) const;
 };
 
 #endif

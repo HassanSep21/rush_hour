@@ -7,7 +7,7 @@ int Passenger::getX() const { return x; }
 int Passenger::getY() const { return y; }
 int Passenger::getDesX() const { return desX; }
 int Passenger::getDesY() const { return desY; }
-float Passenger::getFair() const { return fair; }
+float Passenger::getFare() const { return fair; }
 
 bool Passenger::isPickedUp() const { return pickedUp; }
 
