@@ -39,12 +39,17 @@ void Leaderboard::updateLeaderboard(const char* playerName, int playerScore)
 
 void Leaderboard::showLeaderboard() const
 {
+    
     ifstream inFile("leaderboard.dat", ios::binary);
-    if (!inFile) return;
-
+    if (!inFile)
+    {
+        DrawString(WIDTH / 2 - 200, HEIGHT / 2 + 50, "NO ONE HAS PLAYED THE GAME YET!", colors[BLACK]);
+        return;
+    };
+    
+    DrawString(WIDTH / 2 - 80, HEIGHT / 2 + 50, "LEADERBOARD", colors[BLACK]);
     Entry entry;
     int rank = 1;
-    DrawString(WIDTH / 2 - 80, HEIGHT / 2 + 50, "LEADERBOARD", colors[BLACK]);
     while (inFile.read(reinterpret_cast<char*>(&entry), sizeof(entry))) 
     {
         string str = to_string(rank) + ". " + string(entry.name) + " - " + to_string(entry.score);

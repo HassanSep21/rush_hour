@@ -21,7 +21,7 @@ private:
 	bool holding;
 
 public:
-	Player(int role = 0);
+	Player(int role = 1);
 
 	string getName() const;
 	void setName(string name);
