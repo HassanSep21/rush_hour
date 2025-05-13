@@ -1,8 +1,8 @@
 # RUSH HOUR OOP
 
-![Project Screenshot](.assets/gameprev.png)
+![Project Screenshot](assets/gameprev.png)
 
-**Rush Hour OOP** is a traffic management simulation game built using Object-Oriented Programming principles. Players navigate through city traffic, picking up passengers, delivering packages, and managing fuel while avoiding obstacles.
+**Rush Hour** is a traffic taxi/delivery driver simulation game built using Object-Oriented Programming principles. Players navigate through city traffic, picking up passengers, delivering packages, and managing fuel while avoiding obstacles.
 
 ---
 
@@ -31,27 +31,27 @@
 
 ### Prerequisites
 
-* C++ compiler (G++)
-* Required libraries (list your specific dependencies here)
+* C++ compiler (G++) or (clang++)
+* Required libraries (OpenGL, GLUT, GLEW)
 
 ### Steps
 
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/rush-hour-oop.git
-cd rush-hour-oop
+git clone https://github.com/HassanSep21/rush_hour.git
+cd rush_hour
 make
-./rush-hour
+./game
 ```
 
 ## How to Play
 
-1. Control your vehicle through traffic using arrow keys or WASD
-2. Pick up passengers/packages by moving over them
-3. Deliver to highlighted destinations to earn points
-4. Visit fuel stations to refill your tank
-5. Use role-change stations to switch between passenger and package delivery modes
+1. Control your vehicle through traffic using arrow keys
+2. Pick up passengers/packages [SPACE-BAR]
+3. Deliver to highlighted destinations to earn points [SPACE-BAR]
+4. Visit fuel stations to refill your tank [F]
+5. Use role-change stations to switch between passenger and package delivery modes [P]
 6. Avoid obstacles to prevent damage and slowdowns
 7. Aim for a high score on the leaderboard
 
@@ -73,4 +73,4 @@ The game is built using the following classes:
 
 ## Gameplay Preview
 
-![Gameplay Demo](.assets/gameplay.gif)
+![Gameplay Demo](assets/gameplay.gif)
