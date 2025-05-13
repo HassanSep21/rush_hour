@@ -11,7 +11,7 @@ float Passenger::getFare() const { return fair; }
 
 bool Passenger::isPickedUp() const { return pickedUp; }
 
-void Passenger::setPickedUp(bool status) { pickedUp = status; }
+void Passenger::setPickedUp(bool status) { pickedUp = status; x = 0; y = 0; }
 void Passenger::setReached(bool status)  { reachedDes = status; }
 
 void Passenger::draw()

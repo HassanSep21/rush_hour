@@ -10,7 +10,7 @@ float Package::getFee() const { return fee; }
 
 bool Package::isPickedUp() const { return pickedUp; }
 
-void Package::setPickedUp(bool status) { pickedUp = status; }
+void Package::setPickedUp(bool status) { pickedUp = status; x = 0; y = 0; }
 void Package::setDroppedOff(bool status)  { droppedOff = status; }
 
 void Package::draw()

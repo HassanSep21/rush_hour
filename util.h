@@ -1,8 +1,3 @@
-/*
- * util.h
- *
- */
-
 #ifndef UTIL_H_
 #define UTIL_H_
 /*
@@ -27,7 +22,7 @@
 
 #define cimg_display 0
 #include "CImg.h"
-#include<vector>
+#include <vector>
 
 /*=======================================*//* CONSTANTS *//*=======================================*/
 
@@ -49,14 +44,12 @@
 
 using namespace std;
 
-
 #define FPS 80 // frame per seconds
 
 // define another constant to hold ASCII for Escape key.
-#define KEY_ESC 27 // A
+#define KEY_ESC 27
 
-//
-// ColorName you can refer any color by its name..
+// ColorName you can refer any color by its name
 // In other words you can use colorname as an index in color array (see below)
 #define COLOR_COUNT 140
 enum ColorNames {
@@ -332,8 +325,6 @@ static float colors[][3] = { { 0.501960784313726, 0, 0 }, { 0.545098039215686,
 #define MIN(A,B) ((A) < (B) ? (A):(B)) // find min of two numbers
 #define ABS(A) ((A) < (0) ? -(A):(A))  // find ABS of a given number
 
-// define some constants
-
 float Deg2Rad(float degree);
 float Rad2Deg(float angle);
 
@@ -350,12 +341,12 @@ void DrawCircle(float sx, float sy, float radius, float*color);
 void DrawSquare(int sx, int sy, int size, float* color);
 
 // Function draws a circular curve of given
-void Torus2d(int x /*Starting position x*/, int y /*Starting position Y*/,
-		float angle, // starting angle in degrees
+void Torus2d(int x, int,
+		float angle, 			// starting angle in degrees
 		float length,           // length of arc in degrees, >0
 		float radius,           // inner radius, >0
 		float width,            // width of torus, >0
-		unsigned int samples,    // number of circle samples, >=3
+		unsigned int samples,   // number of circle samples, >=3
 		float *color = NULL);
 
 // Function draws a line between point P1(x1,y1) and P2(x2,y2)
@@ -369,23 +360,22 @@ void DrawRoundRect(float x, float y, float width, float height, float* color = 0
 void DrawString(int x, int y, int width, int height, const string& str, float * color = NULL);
 void DrawString(float x, float y, const string& str, float * color = NULL);
 
-// seed the random numbers generator by current time (see the documentation of srand for further help)...
+// seed the random numbers generator by current time (see the documentation of srand for further help)
 void InitRandomizer();
 
-//This function returns a random value within the specified range of [rmin, rmax] ...
+//This function returns a random value within the specified range of [rmin, rmax]
 long GetRandInRange(const long &rmin, const long &rmax);
 
 /*To draw a triangle we need three vertices with each vertex having 2-coordinates [x, y] and a color for the triangle.
  * This function takes 4 arguments first three arguments (3 vertices + 1 color) to
  * draw the triangle with the given color.
- *
  */
 void DrawTriangle(int x1, int y1, int x2, int y2, int x3, int y3, float *color);
 
 // Draws a rectangle of the specified color
 void DrawRectangle(int sx, int sy, int width, int height, float *color);
 
-// Convert a Number to String...
+// Convert a Number to String.
 string Num2Str(int t);
 
-#endif /* UTIL_H_ */
+#endif

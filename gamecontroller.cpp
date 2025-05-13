@@ -144,14 +144,16 @@ void GameController::handleNonPrintableKeys(int key)
 
         // Running Over Passenger Penelty
         for (int i = 0; i < board.getPassengerCount(); i++)
-            if (playerCar.isHolding() && (board.getPassenger(i).getX() == playerCar.getX() && 
-                                            board.getPassenger(i).getY() == playerCar.getY()))
+            if (playerCar.getRole() == PlayerRoles:: TAXI && 
+                playerCar.isHolding() && (board.getPassenger(i).getX() == playerCar.getX() && 
+                board.getPassenger(i).getY() == playerCar.getY()))
                 playerCar.updateScore(-5);
         
         // Running Over Package Penelty		
         for (int i = 0; i < board.getPackageCount(); i++)
-            if (playerCar.isHolding() && (board.getPackage(i).getX() == playerCar.getX() && 
-                                        board.getPackage(i).getY() == playerCar.getY()))
+            if (playerCar.getRole() == PlayerRoles:: DELIVERY && 
+                playerCar.isHolding() && (board.getPackage(i).getX() == playerCar.getX() && 
+                board.getPackage(i).getY() == playerCar.getY()))
                 playerCar.updateScore(-8);
 
         // If YOU Hit An NPC Car Penelty
@@ -169,23 +171,34 @@ void GameController::handlePrintableKeys(char key)
 {
     if (key == 27) { exit(1); }
 
-    string str;
     switch (gameState)
     {
         case GameState::GAME_MENU:
             if (key == 't' || key == 'T') playerCar.setRole(PlayerRoles::TAXI);
-            else if (key == 'd' == key == 'D') playerCar.setRole(PlayerRoles::DELIVERY);
+            else if (key == 'd' || key == 'D') playerCar.setRole(PlayerRoles::DELIVERY);
             else if (key == 'r' || key == 'R') playerCar.setRole(rand() % 2);
             else if (key == 'l' || key == 'L') { gameState = GameState::GAME_SHOW_LEADERBOARD; break; }
+            else break;
             gameState = GameState::GAME_INPUT_NAME;
             break;
 
         case GameState::GAME_INPUT_NAME:
             if (key == '\r')
                 gameState = GameState::GAME_START;
-
-            str = playerCar.getName() + key;
-            playerCar.setName(str);
+            else if (key == '\b' || key == 127)
+            {
+                string str = playerCar.getName();
+                if (!str.empty())
+                {
+                    str.pop_back();
+                    playerCar.setName(str);
+                }
+            }
+            else
+            {
+                string str = playerCar.getName() + key;
+                playerCar.setName(str);
+            }
             break;
 
         case GameState::GAME_START:
@@ -268,75 +281,48 @@ void GameController::updateNPCs()
 
 void GameController::drawMenu() const 
 {
-    // Constants for better organization
     const int titleBoxWidth = 500;
     const int titleBoxHeight = 80;
     const int buttonWidth = 400;
     const int buttonHeight = 50;
     const int buttonSpacing = 65;
-    const int titleFontSize = 24; // Conceptual - using existing DrawString
     
     // Center coordinates
     const int centerX = WIDTH / 2;
     const int centerY = HEIGHT / 2;
     
-    // Background panel for the entire menu
-    DrawRoundRect(centerX - (buttonWidth + 40) / 2, 
-                 centerY - 220, 
-                 buttonWidth + 40, 
-                 buttonSpacing * 5 + 40, 
-                 colors[SLATE_GRAY], 
-                 15);
-    
-    // Title Box with gradient-like effect
-    DrawRoundRect(centerX - titleBoxWidth / 2, centerY - 330, titleBoxWidth, titleBoxHeight, colors[DARK_RED], 20);
-    DrawRoundRect(centerX - titleBoxWidth / 2 + 5, centerY - 330 + 5, titleBoxWidth - 10, titleBoxHeight - 10, colors[RED], 15);
-    
+    // Title Box
+    DrawRoundRect(centerX - titleBoxWidth / 2, centerY + 260, titleBoxWidth, titleBoxHeight, colors[DARK_RED], 20);
+    DrawRoundRect(centerX - titleBoxWidth / 2 + 5, centerY + 260 + 5, titleBoxWidth - 10, titleBoxHeight - 10, colors[RED], 15);
+
     // Game Title with shadow effect
-    DrawString(centerX - 95 + 2, centerY - 295 + 2, "RUSH HOUR", colors[BLACK]); // Shadow
-    DrawString(centerX - 95, centerY - 295, "RUSH HOUR", colors[WHITE]); // Text
+    DrawString(centerX - 90 + 2, centerY + 295 + 2, "R U S H  H O U R", colors[BLACK]); // Shadow
+    DrawString(centerX - 90, centerY + 295, "R U S H  H O U R", colors[WHITE]); // Text
+
+    // Background panel for the entire menu
+    DrawRoundRect(centerX - (buttonWidth + 40) / 2, centerY - 220, buttonWidth + 40, buttonSpacing * 4 + 40, colors[SLATE_GRAY], 15);
     
-    // Menu Options Array - Contains button data: {y-offset, background color, text color, label}
-    struct MenuButton {
-        int yOffset;
-        ColorNames bgColor;
-        ColorNames textColor;
-        string label;
-        char hotkey;
-    };
+    int startY = centerY + 70;
     
-    MenuButton buttons[] = {
-        {0, ORANGE, BLACK, "Play as Taxi Driver", 'T'},
-        {-buttonSpacing, BLUE, WHITE, "Play as Delivery Driver", 'D'},
-        {-buttonSpacing * 2, GREEN, BLACK, "Random Role", 'R'},
-        {-buttonSpacing * 3, YELLOW, BLACK, "Leaderboard", 'L'}
-    };
-    
-    // Draw all buttons
-    int startY = centerY + 80;
-    for (const auto& btn : buttons) {
-        // Button background with 3D effect
-        DrawRoundRect(centerX - buttonWidth / 2, 
-                     startY + btn.yOffset + 3, 
-                     buttonWidth, 
-                     buttonHeight, 
-                     colors[DARK_GRAY], 
-                     12); // Shadow
-        
-        DrawRoundRect(centerX - buttonWidth / 2, 
-                     startY + btn.yOffset, 
-                     buttonWidth, 
-                     buttonHeight, 
-                     colors[btn.bgColor], 
-                     10);
-        
-        // Button text with hotkey highlighted
-        string display = "[" + string(1, btn.hotkey) + "] " + btn.label;
-        DrawString(centerX - buttonWidth / 2 + 30, 
-                  startY + btn.yOffset + 15, 
-                  display, 
-                  colors[btn.textColor]);
-    }
+    // Taxi
+    DrawRoundRect(centerX - buttonWidth / 2, startY - buttonSpacing + 3, buttonWidth, buttonHeight, colors[DARK_GRAY], 12); // Shadow
+    DrawRoundRect(centerX - buttonWidth / 2, startY - buttonSpacing, buttonWidth, buttonHeight, colors[ORANGE], 10);
+    DrawString(centerX - buttonWidth / 2 + 30, startY - buttonSpacing + 15, "[ T ] A X I  D R I V E R", colors[BLACK]);
+
+    // Delivery
+    DrawRoundRect(centerX - buttonWidth / 2, startY - buttonSpacing * 2 + 3, buttonWidth, buttonHeight, colors[DARK_GRAY], 12); // Shadow
+    DrawRoundRect(centerX - buttonWidth / 2, startY - buttonSpacing * 2, buttonWidth, buttonHeight, colors[BLUE], 10);
+    DrawString(centerX - buttonWidth / 2 + 30, startY - buttonSpacing * 2 + 15, "[ D ] E L I V E R Y  D R I V E R", colors[WHITE]);
+
+    // Random
+    DrawRoundRect(centerX - buttonWidth / 2, startY - buttonSpacing * 3 + 3, buttonWidth, buttonHeight, colors[DARK_GRAY], 12); // Shadow
+    DrawRoundRect(centerX - buttonWidth / 2, startY - buttonSpacing * 3, buttonWidth, buttonHeight, colors[GREEN], 10);
+    DrawString(centerX - buttonWidth / 2 + 30, startY - buttonSpacing * 3 + 15, "[ R ] A N D O M  D R I V E R", colors[BLACK]);
+
+    // Leaderboard
+    DrawRoundRect(centerX - buttonWidth / 2, startY - buttonSpacing * 4 + 3, buttonWidth, buttonHeight, colors[DARK_GRAY], 12); // Shadow
+    DrawRoundRect(centerX - buttonWidth / 2, startY - buttonSpacing * 4, buttonWidth, buttonHeight, colors[ROYAL_BLUE], 10);
+    DrawString(centerX - buttonWidth / 2 + 30, startY - buttonSpacing * 4 + 15, "[ L ] E A D E R B O A R D", colors[BLACK]);
 }
 
 void GameController::drawGame() const
@@ -358,14 +344,14 @@ void GameController::drawGame() const
     float* roleColor = colors[isTaxi ? ORANGE : BLUE];
 
     // Draw info panel background
-    DrawRoundRect(20, 920, 1160, 60, colors[LIGHT_GRAY], 10);
+    DrawRoundRect(20, 920, 1160, 60, colors[playerCar.getRole() == PlayerRoles::TAXI ? DARK_ORANGE : LIGHT_CYAN], 10);
 
     // Draw labels
-    DrawString(50, 950, timeStr, colors[BLACK]);
-    DrawString(350, 950, scoreStr, colors[BLACK]);
-    DrawString(650, 950, cashStr, colors[BLACK]);
-    DrawString(950, 950, "Role: ", colors[BLACK]);
-    DrawString(1010, 950, roleStr, roleColor);
+    DrawString(50, 945, timeStr, colors[BLACK]);
+    DrawString(350, 945, scoreStr, colors[BLACK]);
+    DrawString(650, 945, cashStr, colors[BLACK]);
+    DrawString(950, 945, "Role: ", colors[BLACK]);
+    DrawString(1010, 945, roleStr, roleColor);
 
     // Fuel Indicator Box
     float* fuelColor;
@@ -393,75 +379,111 @@ void GameController::drawGame() const
 
 void GameController::drawGameOverScreen() const
 {
-    // Full white background
-    DrawRectangle(0, 0, WIDTH, HEIGHT, colors[WHITE]);
+    int centerX = WIDTH / 2;
+    int centerY = HEIGHT / 2;
+    
+    // Draw flashing effect
+    int currentTime = glutGet(GLUT_ELAPSED_TIME);
+    if ((currentTime / 1000) % 2 == 0) 
+        DrawRoundRect(centerX - 240, centerY + 30, 480, 90, colors[RED], 20);
+    else
+        DrawRoundRect(centerX - 240, centerY + 30, 480, 90, colors[DARK_RED], 20);
 
-    // Draw a centered red banner for "GAME OVER"
-    DrawRoundRect(WIDTH / 2 - 200, HEIGHT / 2 + 30, 400, 60, colors[RED], 15);
-    DrawString(WIDTH / 2 - 80, HEIGHT / 2 + 50, "GAME OVER", colors[WHITE]);
-
-    // Final Score Box
-    DrawRoundRect(WIDTH / 2 - 180, HEIGHT / 2 - 10, 360, 50, colors[LIGHT_GRAY], 10);
-    string scoreStr = "Final Score: " + to_string(playerCar.getScore());
-    DrawString(WIDTH / 2 - 100, HEIGHT / 2 + 10, scoreStr, colors[BLACK]);
+    // Main title box
+    DrawString(centerX - 100, centerY + 75, "G A M E  O V E R", colors[WHITE]);
+    
+    // Player stats panel
+    DrawRoundRect(centerX - 180, centerY - 160, 360, 160, colors[SLATE_GRAY], 10);
+    DrawRoundRect(centerX - 170, centerY - 150, 340, 140, colors[WHITE], 5);
+    
+    // Final Score
+    DrawString(centerX - 100, centerY - 70, "F I N A L  S C O R E", colors[DARK_RED]);
+    DrawString(centerX - 20, centerY - 110, Num2Str(playerCar.getScore()), colors[GOLD]);
+    
+    // Restart prompt with pulsing effect
+    if ((currentTime / 500) % 2 == 0) 
+    {
+        DrawRoundRect(centerX - 180, centerY - 300, 360, 50, colors[DARK_RED], 10);
+        DrawString(centerX - 110, centerY - 280, "[ E S C ]  T O  E X I T", colors[WHITE]);
+    }
+    
+    DrawString(30, 30, "Better luck next time, driver...", colors[LIGHT_GRAY]);
 }
 
 void GameController::drawWinScreen() const
 {
-    // Full white background
-    DrawRectangle(0, 0, WIDTH, HEIGHT, colors[WHITE]);
-
-    // Green banner for "CONGRATULATIONS!"
-    DrawRoundRect(WIDTH / 2 - 240, HEIGHT / 2 + 30, 480, 60, colors[GREEN], 15);
-    DrawString(WIDTH / 2 - 120, HEIGHT / 2 + 50, "CONGRATULATIONS!", colors[WHITE]);
-
-    // YOU WIN message
-    DrawRoundRect(WIDTH / 2 - 160, HEIGHT / 2 - 20, 320, 50, colors[FOREST_GREEN], 10);
-    DrawString(WIDTH / 2 - 60, HEIGHT / 2, "YOU WIN!", colors[WHITE]);
-
-    // Final Score Box
-    DrawRoundRect(WIDTH / 2 - 180, HEIGHT / 2 - 90, 360, 40, colors[LIGHT_GRAY], 10);
-    string scoreStr = "Final Score: " + to_string(playerCar.getScore());
-    DrawString(WIDTH / 2 - 100, HEIGHT / 2 - 70, scoreStr, colors[BLACK]);
+    
+    int centerX = WIDTH / 2;
+    int centerY = HEIGHT / 2;
+    
+    // Victory banner with particle effect
+    DrawRoundRect(centerX - 100, centerY - 170, 200, 70, colors[ROYAL_BLUE], 15);
+    DrawString(centerX - 60, centerY - 140, "YOU WIN!", colors[WHITE]);
+    
+    // Draw stars around the screen
+    for (int i = 0; i < 20; i++) 
+    {
+        int x = GetRandInRange(50, WIDTH - 50);
+        int y = GetRandInRange(50, HEIGHT - 50);
+        int size = GetRandInRange(2, 8);
+        DrawCircle(x, y, size, colors[GetRandInRange(0, COLOR_COUNT)]);
+    }
+    
+    // Player stats panel
+    DrawRoundRect(centerX - 180, centerY + 90, 360, 160, colors[SLATE_GRAY], 10);
+    DrawRoundRect(centerX - 170, centerY + 100, 340, 140, colors[WHITE], 5);
+    
+    // Final Score
+    DrawString(centerX - 100, centerY + 180, "F I N A L  S C O R E", colors[DARK_BLUE]);
+    DrawString(centerX - 20, centerY + 140, Num2Str(playerCar.getScore()), colors[DARK_BLUE]);
+    
+    // Press ESC
+    int currentTime = glutGet(GLUT_ELAPSED_TIME);
+    if ((currentTime / 500) % 2 == 0) 
+        DrawString(centerX - 130, 50, "Press ESC to Exit Screen", colors[DARK_GRAY]);
 }
 
 void GameController::drawNameInputScreen() const
 {
-    DrawRectangle(0, 0, WIDTH, HEIGHT, colors[ALICE_BLUE]);
-
     DrawRoundRect(WIDTH/2 - 250, HEIGHT/2 - 150, 500, 300, colors[WHITE], 15.0);
     DrawRoundRect(WIDTH/2 - 255, HEIGHT/2 - 155, 510, 310, colors[LIGHT_BLUE], 18.0);
 
     // Draw header
-    float headerColor[3] = {0.2, 0.3, 0.6}; // Dark blue
-    DrawString(WIDTH/2 - 140, HEIGHT/2 + 80, "PLAYER REGISTRATION", headerColor);
+    DrawString(WIDTH/2 - 140, HEIGHT/2 + 80, "PLAYER REGISTRATION", colors[DARK_BLUE]);
 
     // Draw question text with better styling
     DrawString(WIDTH/2 - 130, HEIGHT/2 + 20, "WHAT'S YOUR NAME:", colors[SLATE_BLUE]);
 
     // Draw input text with shadow effect
-    DrawString(WIDTH/2 - 177, HEIGHT/2 - 17, playerCar.getName(), colors[GAINSBORO]);
-    DrawString(WIDTH/2 - 180, HEIGHT/2 - 20, playerCar.getName(), colors[DARK_BLUE]);
+    DrawString(WIDTH/2 - 127, HEIGHT/2 - 17, playerCar.getName(), colors[GAINSBORO]);
+    DrawString(WIDTH/2 - 130, HEIGHT/2 - 20, playerCar.getName(), colors[DARK_BLUE]);
 
     // Add a blinking cursor if name input is active
-    static int blinkCounter = 0;
-    blinkCounter = (blinkCounter + 1) % 80; // Blink every 80 frames
-    if (blinkCounter < 40) 
-    { // Show cursor for half the time
+    int currentTime = glutGet(GLUT_ELAPSED_TIME);
+    if ((currentTime / 500) % 2 == 0) 
+    {
         int textWidth = playerCar.getName().length() * 12; // Approximate width based on character count
-        DrawLine(WIDTH/2 - 180 + textWidth, HEIGHT/2 - 20, WIDTH/2 - 180 + textWidth, HEIGHT/2 - 40, 2, colors[DEEP_PINK]);
+        DrawLine(WIDTH/2 - 130 + textWidth + 4, HEIGHT/2 + 5, WIDTH/2 - 130 + textWidth + 4, HEIGHT/2 - 25, 2, colors[DEEP_PINK]);
     }
 
     // Draw instruction text
     DrawRoundRect(WIDTH/2 - 120, HEIGHT/2 - 100, 240, 40, colors[LAVENDER], 8.0);
-    DrawString(WIDTH/2 - 40, HEIGHT/2 - 80, "ENTER", colors[DARK_BLUE]);
+    DrawString(WIDTH/2 - 50, HEIGHT/2 - 85, "E N T E R", colors[DARK_BLUE]);
 }
 
-void GameController::drawLeaderBoard() const
-{
-    DrawRectangle(0, 0, WIDTH, HEIGHT, colors[WHITE]);
+void GameController::drawLeaderBoard() const 
+{   
+    // Leaderboard header
+    DrawRoundRect(WIDTH / 2 - 300, HEIGHT - 150, 600, 100, colors[ROYAL_BLUE], 15);
+    DrawString(WIDTH / 2 - 130, HEIGHT - 110, "L E A D E R B O A R D", colors[WHITE]);
     
+    // Display leaderboard box
+    DrawRoundRect(WIDTH / 2 - 250, HEIGHT / 2 - 300, 500, 600, colors[LIGHT_STEEL_BLUE], 10);
+    DrawRoundRect(WIDTH / 2 - 240, HEIGHT / 2 - 290, 480, 580, colors[WHITE], 8);
+    
+    // Display leaderboard
     leaderboard.showLeaderboard();
-
-    DrawString(WIDTH/2 - 160, HEIGHT/2 - 80, "Press [M] To Return To Menu", colors[DARK_BLUE]);
+    
+    DrawRoundRect(WIDTH / 2 - 180, 80, 360, 50, colors[FOREST_GREEN], 10);
+    DrawString(WIDTH / 2 - 70, 100, "[ M ] E N U", colors[WHITE]);
 }
